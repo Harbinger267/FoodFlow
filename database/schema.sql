@@ -6,8 +6,8 @@ CREATE TABLE users (
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    role VARCHAR(50) NOT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
+    role ENUM('ADMIN', 'DEPARTMENT_HEAD', 'STOREKEEPER') NOT NULL,
+    status ENUM('ACTIVE', 'INACTIVE') NOT NULL DEFAULT 'ACTIVE',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -15,10 +15,11 @@ CREATE TABLE items (
     item_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
     category VARCHAR(100) NOT NULL,
+    item_type ENUM('FOOD', 'UTENSIL', 'TOOL') NOT NULL,
     stock DOUBLE NOT NULL DEFAULT 0,
     unit_of_measure VARCHAR(50) NOT NULL,
     description TEXT,
-    status VARCHAR(50) NOT NULL DEFAULT 'AVAILABLE'
+    status ENUM('AVAILABLE', 'OUT_OF_STOCK', 'DAMAGED', 'INACTIVE') NOT NULL DEFAULT 'AVAILABLE'
 );
 
 CREATE TABLE supply (
@@ -27,9 +28,20 @@ CREATE TABLE supply (
     quantity DOUBLE NOT NULL,
     supplier VARCHAR(100) NOT NULL,
     supply_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    recorded_by INT NOT NULL,
+    recorded_by INT NULL,
     FOREIGN KEY (item_id) REFERENCES items(item_id) ON DELETE CASCADE,
-    FOREIGN KEY (recorded_by) REFERENCES users(user_id) ON DELETE CASCADE
+    FOREIGN KEY (recorded_by) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+CREATE TABLE issue_transactions (
+    issue_id INT PRIMARY KEY AUTO_INCREMENT,
+    item_id INT NOT NULL,
+    quantity_issued DOUBLE NOT NULL,
+    issued_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    issued_by INT NULL,
+    issued_to VARCHAR(100) NOT NULL,
+    FOREIGN KEY (item_id) REFERENCES items(item_id) ON DELETE CASCADE,
+    FOREIGN KEY (issued_by) REFERENCES users(user_id) ON DELETE SET NULL
 );
 
 CREATE TABLE borrow_transactions (
@@ -39,10 +51,11 @@ CREATE TABLE borrow_transactions (
     quantity_returned DOUBLE NOT NULL DEFAULT 0,
     borrow_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     return_date DATETIME NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'ISSUED',
-    recorded_by INT NOT NULL,
+    status ENUM('BORROWED', 'PARTIALLY_RETURNED', 'RETURNED', 'LOST') NOT NULL DEFAULT 'BORROWED',
+    recorded_by INT NULL,
+    borrower_name VARCHAR(100) NOT NULL,
     FOREIGN KEY (item_id) REFERENCES items(item_id) ON DELETE CASCADE,
-    FOREIGN KEY (recorded_by) REFERENCES users(user_id) ON DELETE CASCADE
+    FOREIGN KEY (recorded_by) REFERENCES users(user_id) ON DELETE SET NULL
 );
 
 CREATE TABLE damage_log (
@@ -51,20 +64,20 @@ CREATE TABLE damage_log (
     quantity DOUBLE NOT NULL,
     damage_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     description TEXT,
-    reported_by INT NOT NULL,
+    reported_by INT NULL,
     FOREIGN KEY (item_id) REFERENCES items(item_id) ON DELETE CASCADE,
-    FOREIGN KEY (reported_by) REFERENCES users(user_id) ON DELETE CASCADE
+    FOREIGN KEY (reported_by) REFERENCES users(user_id) ON DELETE SET NULL
 );
 
 CREATE TABLE store_requests (
     request_id INT PRIMARY KEY AUTO_INCREMENT,
     requester_id INT NOT NULL,
     approver_id INT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    status ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
     request_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     approved_date DATETIME NULL,
     notes TEXT,
-    FOREIGN KEY (requester_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (requester_id) REFERENCES users(user_id) ON DELETE RESTRICT,
     FOREIGN KEY (approver_id) REFERENCES users(user_id) ON DELETE SET NULL
 );
 
@@ -80,8 +93,8 @@ CREATE TABLE request_details (
 
 CREATE TABLE system_logs (
     log_id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
+    user_id INT NULL,
     action_performed VARCHAR(255) NOT NULL,
     timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 );
