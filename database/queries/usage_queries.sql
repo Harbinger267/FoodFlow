@@ -1,344 +1,245 @@
-
 USE foodflow;
 
 -- =========================================
 -- CREATE OPERATIONS
 -- =========================================
 
--- Record usage/consumption (stock OUT)
-INSERT INTO stock_transactions (item_id, user_id, transaction_type, quantity, transaction_date, reference_id, notes)
-VALUES (?, ?, 'OUT', ?, CURRENT_TIMESTAMP, ?, ?);
+-- Record a borrow/issue transaction from stock
+INSERT INTO borrow_transactions (
+    item_id,
+    quantity_borrowed,
+    quantity_returned,
+    borrow_date,
+    return_date,
+    status,
+    recorded_by
+)
+VALUES (?, ?, 0, CURRENT_TIMESTAMP, NULL, ?, ?);
 
--- Update item stock after usage
-UPDATE items 
-SET current_stock = current_stock - ?
+-- Reduce stock when borrowing/issuing
+UPDATE items
+SET stock = stock - ?
 WHERE item_id = ?
-AND current_stock >= ?;
+AND stock >= ?;
+
+-- =========================================
+-- RETURN OPERATIONS
+-- =========================================
+
+-- Register returned quantity and recalculate status
+UPDATE borrow_transactions
+SET
+    quantity_returned = quantity_returned + ?,
+    return_date = CURRENT_TIMESTAMP,
+    status = CASE
+        WHEN (quantity_returned + ?) >= quantity_borrowed THEN 'RETURNED'
+        WHEN (quantity_returned + ?) > 0 THEN 'PARTIALLY_RETURNED'
+        ELSE status
+    END
+WHERE borrow_id = ?;
+
+-- Add returned quantity back to stock
+UPDATE items
+SET stock = stock + ?
+WHERE item_id = ?;
 
 -- =========================================
 -- READ OPERATIONS
 -- =========================================
 
--- Get all usage transactions (stock OUT)
-SELECT 
-    st.transaction_id,
-    st.item_id,
-    i.item_name,
-    i.unit_type,
-    st.quantity,
-    st.transaction_date,
-    st.user_id,
-    u.user_name AS recorded_by,
-    r.role_title AS recorded_by_role,
-    st.reference_id,
-    st.notes
-FROM stock_transactions st
-INNER JOIN items i ON st.item_id = i.item_id
-INNER JOIN users u ON st.user_id = u.user_id
-INNER JOIN roles r ON u.role_id = r.role_id
-WHERE st.transaction_type = 'OUT'
-ORDER BY st.transaction_date DESC;
+-- Get all borrow transactions
+SELECT
+    bt.borrow_id,
+    bt.item_id,
+    i.name AS item_name,
+    i.category,
+    i.unit_of_measure,
+    bt.quantity_borrowed,
+    bt.quantity_returned,
+    (bt.quantity_borrowed - bt.quantity_returned) AS outstanding_quantity,
+    bt.borrow_date,
+    bt.return_date,
+    bt.status,
+    bt.recorded_by,
+    u.name AS recorded_by_name,
+    u.role AS recorded_by_role
+FROM borrow_transactions bt
+INNER JOIN items i ON bt.item_id = i.item_id
+INNER JOIN users u ON bt.recorded_by = u.user_id
+ORDER BY bt.borrow_date DESC;
 
--- Get usage transaction by ID
-SELECT 
-    st.transaction_id,
-    st.item_id,
-    i.item_name,
-    i.unit_type,
-    st.quantity,
-    st.transaction_date,
-    st.user_id,
-    u.user_name AS recorded_by,
-    u.email_address AS recorded_by_email,
-    st.reference_id,
-    st.notes
-FROM stock_transactions st
-INNER JOIN items i ON st.item_id = i.item_id
-INNER JOIN users u ON st.user_id = u.user_id
-WHERE st.transaction_type = 'OUT'
-AND st.transaction_id = ?;
+-- Get borrow transaction by ID
+SELECT
+    bt.borrow_id,
+    bt.item_id,
+    i.name AS item_name,
+    i.category,
+    i.unit_of_measure,
+    bt.quantity_borrowed,
+    bt.quantity_returned,
+    (bt.quantity_borrowed - bt.quantity_returned) AS outstanding_quantity,
+    bt.borrow_date,
+    bt.return_date,
+    bt.status,
+    u.name AS recorded_by_name,
+    u.email AS recorded_by_email
+FROM borrow_transactions bt
+INNER JOIN items i ON bt.item_id = i.item_id
+INNER JOIN users u ON bt.recorded_by = u.user_id
+WHERE bt.borrow_id = ?;
 
--- Get usage by date range
-SELECT 
-    st.transaction_id,
-    st.item_id,
-    i.item_name,
-    c.category_name,
-    st.quantity,
-    i.unit_type,
-    st.transaction_date,
-    u.user_name AS recorded_by,
-    st.notes
-FROM stock_transactions st
-INNER JOIN items i ON st.item_id = i.item_id
-INNER JOIN categories c ON i.category_id = c.category_id
-INNER JOIN users u ON st.user_id = u.user_id
-WHERE st.transaction_type = 'OUT'
-AND st.transaction_date BETWEEN ? AND ?
-ORDER BY st.transaction_date DESC;
+-- Get borrow transactions by date range
+SELECT
+    bt.borrow_id,
+    bt.item_id,
+    i.name AS item_name,
+    i.category,
+    bt.quantity_borrowed,
+    bt.quantity_returned,
+    bt.status,
+    bt.borrow_date,
+    bt.return_date,
+    u.name AS recorded_by_name
+FROM borrow_transactions bt
+INNER JOIN items i ON bt.item_id = i.item_id
+INNER JOIN users u ON bt.recorded_by = u.user_id
+WHERE bt.borrow_date BETWEEN ? AND ?
+ORDER BY bt.borrow_date DESC;
 
--- Get usage by item
-SELECT 
-    st.transaction_id,
-    st.quantity,
-    st.transaction_date,
-    u.user_name AS recorded_by,
-    st.notes
-FROM stock_transactions st
-INNER JOIN users u ON st.user_id = u.user_id
-WHERE st.transaction_type = 'OUT'
-AND st.item_id = ?
-ORDER BY st.transaction_date DESC;
+-- Get borrow transactions by item
+SELECT
+    bt.borrow_id,
+    bt.quantity_borrowed,
+    bt.quantity_returned,
+    bt.status,
+    bt.borrow_date,
+    bt.return_date,
+    u.name AS recorded_by_name
+FROM borrow_transactions bt
+INNER JOIN users u ON bt.recorded_by = u.user_id
+WHERE bt.item_id = ?
+ORDER BY bt.borrow_date DESC;
 
--- Get usage by user who recorded
-SELECT 
-    st.transaction_id,
-    st.item_id,
-    i.item_name,
-    st.quantity,
-    st.transaction_date,
-    st.notes
-FROM stock_transactions st
-INNER JOIN items i ON st.item_id = i.item_id
-WHERE st.transaction_type = 'OUT'
-AND st.user_id = ?
-ORDER BY st.transaction_date DESC;
+-- Get transactions by status
+SELECT
+    bt.borrow_id,
+    bt.item_id,
+    i.name AS item_name,
+    bt.quantity_borrowed,
+    bt.quantity_returned,
+    (bt.quantity_borrowed - bt.quantity_returned) AS outstanding_quantity,
+    bt.borrow_date,
+    bt.return_date,
+    bt.status
+FROM borrow_transactions bt
+INNER JOIN items i ON bt.item_id = i.item_id
+WHERE bt.status = ?
+ORDER BY bt.borrow_date DESC;
 
--- Get total usage per item (within date range)
-SELECT 
-    i.item_id,
-    i.item_name,
-    i.unit_type,
-    COALESCE(SUM(st.quantity), 0) AS total_consumed,
-    COUNT(st.transaction_id) AS usage_count
-FROM items i
-LEFT JOIN stock_transactions st ON i.item_id = st.item_id 
-    AND st.transaction_type = 'OUT'
-    AND st.transaction_date BETWEEN ? AND ?
-WHERE i.status = 'AVAILABLE'
-GROUP BY i.item_id, i.item_name, i.unit_type
-ORDER BY total_consumed DESC;
+-- Get open transactions (not fully returned)
+SELECT
+    bt.borrow_id,
+    bt.item_id,
+    i.name AS item_name,
+    bt.quantity_borrowed,
+    bt.quantity_returned,
+    (bt.quantity_borrowed - bt.quantity_returned) AS outstanding_quantity,
+    bt.borrow_date,
+    bt.status,
+    u.name AS recorded_by_name
+FROM borrow_transactions bt
+INNER JOIN items i ON bt.item_id = i.item_id
+INNER JOIN users u ON bt.recorded_by = u.user_id
+WHERE bt.status IN ('BORROWED', 'PARTIALLY_RETURNED', 'LOST')
+ORDER BY bt.borrow_date ASC;
 
--- Get daily usage summary
-SELECT 
-    DATE(st.transaction_date) AS usage_date,
-    COUNT(st.transaction_id) AS transaction_count,
-    SUM(st.quantity) AS total_quantity
-FROM stock_transactions st
-WHERE st.transaction_type = 'OUT'
-GROUP BY DATE(st.transaction_date)
-ORDER BY usage_date DESC;
-
--- Get monthly usage summary
-SELECT 
-    YEAR(st.transaction_date) AS year,
-    MONTH(st.transaction_date) AS month,
-    COUNT(st.transaction_id) AS transaction_count,
-    SUM(st.quantity) AS total_quantity
-FROM stock_transactions st
-WHERE st.transaction_type = 'OUT'
-GROUP BY YEAR(st.transaction_date), MONTH(st.transaction_date)
-ORDER BY year DESC, month DESC;
-
--- Get usage by category (within date range)
-SELECT 
-    c.category_id,
-    c.category_name,
-    COUNT(st.transaction_id) AS transaction_count,
-    SUM(st.quantity) AS total_quantity
-FROM categories c
-LEFT JOIN items i ON c.category_id = i.category_id
-LEFT JOIN stock_transactions st ON i.item_id = st.item_id 
-    AND st.transaction_type = 'OUT'
-    AND st.transaction_date BETWEEN ? AND ?
-GROUP BY c.category_id, c.category_name
-ORDER BY total_quantity DESC;
-
--- Get recent usage (last 7 days)
-SELECT 
-    st.transaction_id,
-    st.item_id,
-    i.item_name,
-    st.quantity,
-    st.transaction_date,
-    u.user_name AS recorded_by
-FROM stock_transactions st
-INNER JOIN items i ON st.item_id = i.item_id
-INNER JOIN users u ON st.user_id = u.user_id
-WHERE st.transaction_type = 'OUT'
-AND st.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-ORDER BY st.transaction_date DESC;
-
--- Get usage linked to store requests
-SELECT 
-    st.transaction_id,
-    st.item_id,
-    i.item_name,
-    st.quantity,
-    st.transaction_date,
-    sr.request_id,
-    sr.status AS request_status,
-    u.user_name AS recorded_by
-FROM stock_transactions st
-INNER JOIN items i ON st.item_id = i.item_id
-INNER JOIN users u ON st.user_id = u.user_id
-LEFT JOIN store_requests sr ON st.reference_id = sr.request_id
-WHERE st.transaction_type = 'OUT'
-AND st.reference_id IS NOT NULL
-ORDER BY st.transaction_date DESC;
+-- Daily borrow summary
+SELECT
+    DATE(bt.borrow_date) AS borrow_day,
+    COUNT(bt.borrow_id) AS transaction_count,
+    SUM(bt.quantity_borrowed) AS total_borrowed,
+    SUM(bt.quantity_returned) AS total_returned
+FROM borrow_transactions bt
+GROUP BY DATE(bt.borrow_date)
+ORDER BY borrow_day DESC;
 
 -- =========================================
 -- UPDATE OPERATIONS
 -- =========================================
 
--- Update usage transaction notes
-UPDATE stock_transactions
-SET notes = ?
-WHERE transaction_id = ?
-AND transaction_type = 'OUT';
+-- Mark transaction as lost
+UPDATE borrow_transactions
+SET status = 'LOST',
+    return_date = CURRENT_TIMESTAMP
+WHERE borrow_id = ?;
 
--- Correct usage quantity (with audit trail - recommended to create adjustment transaction instead)
-UPDATE stock_transactions
-SET quantity = ?
-WHERE transaction_id = ?
-AND transaction_type = 'OUT';
+-- Manual status correction
+UPDATE borrow_transactions
+SET status = ?
+WHERE borrow_id = ?;
 
 -- =========================================
 -- DELETE OPERATIONS
 -- =========================================
 
--- Void a usage transaction (soft delete - recommended)
-UPDATE stock_transactions
-SET notes = CONCAT(notes, ' [VOIDED]')
-WHERE transaction_id = ?
-AND transaction_type = 'OUT';
-
--- Remove usage transaction and adjust stock (use with caution)
--- Step 1: Get the quantity to reverse
--- Step 2: Update items stock
-UPDATE items 
-SET current_stock = current_stock + ?
+-- Restore currently outstanding quantity before deleting record
+UPDATE items
+SET stock = stock + ?
 WHERE item_id = ?;
 
--- Step 3: Delete transaction
-DELETE FROM stock_transactions
-WHERE transaction_id = ?
-AND transaction_type = 'OUT';
+-- Delete borrow transaction record
+DELETE FROM borrow_transactions
+WHERE borrow_id = ?;
 
 -- =========================================
 -- ANALYTICS QUERIES
 -- =========================================
 
--- Get average daily consumption
-SELECT 
-    AVG(daily_total) AS avg_daily_consumption
-FROM (
-    SELECT 
-        DATE(transaction_date) AS day,
-        SUM(quantity) AS daily_total
-    FROM stock_transactions
-    WHERE transaction_type = 'OUT'
-    AND transaction_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-    GROUP BY DATE(transaction_date)
-) AS daily_usage;
-
--- Get consumption rate by item (units per day)
-SELECT 
+-- Total borrowed/returned by item (date range)
+SELECT
     i.item_id,
-    i.item_name,
-    i.unit_type,
-    SUM(st.quantity) AS total_consumed,
-    DATEDIFF(MAX(st.transaction_date), MIN(st.transaction_date)) AS days_tracked,
-    CASE 
-        WHEN DATEDIFF(MAX(st.transaction_date), MIN(st.transaction_date)) > 0 
-        THEN SUM(st.quantity) / DATEDIFF(MAX(st.transaction_date), MIN(st.transaction_date))
-        ELSE SUM(st.quantity)
-    END AS avg_daily_consumption
+    i.name,
+    i.unit_of_measure,
+    COALESCE(SUM(bt.quantity_borrowed), 0) AS total_borrowed,
+    COALESCE(SUM(bt.quantity_returned), 0) AS total_returned,
+    COALESCE(SUM(bt.quantity_borrowed - bt.quantity_returned), 0) AS total_outstanding
 FROM items i
-INNER JOIN stock_transactions st ON i.item_id = st.item_id
-WHERE st.transaction_type = 'OUT'
-AND st.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-GROUP BY i.item_id, i.item_name, i.unit_type
-ORDER BY avg_daily_consumption DESC;
+LEFT JOIN borrow_transactions bt ON i.item_id = bt.item_id
+    AND bt.borrow_date BETWEEN ? AND ?
+GROUP BY i.item_id, i.name, i.unit_of_measure
+ORDER BY total_borrowed DESC;
 
--- Compare current month usage vs previous month
-SELECT 
+-- Return performance summary
+SELECT
+    COUNT(*) AS total_transactions,
+    SUM(CASE WHEN status = 'RETURNED' THEN 1 ELSE 0 END) AS fully_returned_count,
+    SUM(CASE WHEN status = 'PARTIALLY_RETURNED' THEN 1 ELSE 0 END) AS partial_return_count,
+    SUM(CASE WHEN status = 'LOST' THEN 1 ELSE 0 END) AS lost_count,
+    ROUND((SUM(CASE WHEN status = 'RETURNED' THEN 1 ELSE 0 END) * 100.0) / COUNT(*), 2) AS return_rate_percent
+FROM borrow_transactions;
+
+-- Average turnaround time (hours) for returned items
+SELECT
+    AVG(TIMESTAMPDIFF(HOUR, borrow_date, return_date)) AS avg_return_hours
+FROM borrow_transactions
+WHERE return_date IS NOT NULL
+AND status IN ('RETURNED', 'PARTIALLY_RETURNED');
+
+-- Compare current month vs previous month borrowing volume
+SELECT
     'Current Month' AS period,
     COUNT(*) AS transaction_count,
-    SUM(quantity) AS total_quantity
-FROM stock_transactions
-WHERE transaction_type = 'OUT'
-AND YEAR(transaction_date) = YEAR(CURDATE())
-AND MONTH(transaction_date) = MONTH(CURDATE())
+    SUM(quantity_borrowed) AS total_borrowed
+FROM borrow_transactions
+WHERE YEAR(borrow_date) = YEAR(CURDATE())
+AND MONTH(borrow_date) = MONTH(CURDATE())
 
 UNION ALL
 
-SELECT 
+SELECT
     'Previous Month' AS period,
     COUNT(*) AS transaction_count,
-    SUM(quantity) AS total_quantity
-FROM stock_transactions
-WHERE transaction_type = 'OUT'
-AND YEAR(transaction_date) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
-AND MONTH(transaction_date) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH));
-
--- Get usage patterns by day of week
-SELECT 
-    DAYNAME(transaction_date) AS day_of_week,
-    COUNT(*) AS transaction_count,
-    SUM(quantity) AS total_quantity,
-    AVG(quantity) AS avg_transaction_size
-FROM stock_transactions
-WHERE transaction_type = 'OUT'
-AND transaction_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-GROUP BY DAYNAME(transaction_date), DAYOFWEEK(transaction_date)
-ORDER BY DAYOFWEEK(transaction_date);
-
--- Get top consuming items for specific period
-SELECT 
-    i.item_id,
-    i.item_name,
-    i.unit_type,
-    c.category_name,
-    SUM(st.quantity) AS total_consumed,
-    COUNT(st.transaction_id) AS usage_frequency
-FROM items i
-INNER JOIN categories c ON i.category_id = c.category_id
-INNER JOIN stock_transactions st ON i.item_id = st.item_id
-WHERE st.transaction_type = 'OUT'
-AND st.transaction_date BETWEEN ? AND ?
-GROUP BY i.item_id, i.item_name, i.unit_type, c.category_name
-ORDER BY total_consumed DESC
-LIMIT 10;
-
--- Estimate days until stockout based on current consumption
-SELECT 
-    i.item_id,
-    i.item_name,
-    i.current_stock,
-    i.unit_type,
-    COALESCE(usage_stats.avg_daily_consumption, 0) AS avg_daily_consumption,
-    CASE 
-        WHEN COALESCE(usage_stats.avg_daily_consumption, 0) > 0 
-        THEN i.current_stock / usage_stats.avg_daily_consumption
-        ELSE NULL
-    END AS estimated_days_until_stockout
-FROM items i
-LEFT JOIN (
-    SELECT 
-        item_id,
-        AVG(daily_consumption) AS avg_daily_consumption
-    FROM (
-        SELECT 
-            item_id,
-            DATE(transaction_date) AS day,
-            SUM(quantity) AS daily_consumption
-        FROM stock_transactions
-        WHERE transaction_type = 'OUT'
-        AND transaction_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-        GROUP BY item_id, DATE(transaction_date)
-    ) AS daily_usage
-    GROUP BY item_id
-) AS usage_stats ON i.item_id = usage_stats.item_id
-WHERE i.status = 'AVAILABLE'
-ORDER BY estimated_days_until_stockout ASC;
+    SUM(quantity_borrowed) AS total_borrowed
+FROM borrow_transactions
+WHERE YEAR(borrow_date) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
+AND MONTH(borrow_date) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH));

@@ -1,4 +1,3 @@
-
 USE foodflow;
 
 -- =========================================
@@ -6,115 +5,98 @@ USE foodflow;
 -- =========================================
 
 -- Insert a new item
-INSERT INTO items (item_name, unit_type, reorder_level, category_id, current_stock, status)
-VALUES (?, ?, ?, ?, ?, 'AVAILABLE');
+INSERT INTO items (name, category, stock, unit_of_measure, description, status)
+VALUES (?, ?, ?, ?, ?, ?);
 
 -- =========================================
 -- READ OPERATIONS
 -- =========================================
 
--- Get all items with category information
-SELECT 
-    i.item_id,
-    i.item_name,
-    i.unit_type,
-    i.reorder_level,
-    i.current_stock,
-    i.status,
-    c.category_name,
-    i.created_at
-FROM items i
-LEFT JOIN categories c ON i.category_id = c.category_id
-ORDER BY i.item_name ASC;
+-- Get all items
+SELECT
+    item_id,
+    name,
+    category,
+    stock,
+    unit_of_measure,
+    description,
+    status
+FROM items
+ORDER BY name ASC;
 
--- Get item by ID with category details
-SELECT 
-    i.item_id,
-    i.item_name,
-    i.unit_type,
-    i.reorder_level,
-    i.current_stock,
-    i.status,
-    c.category_id AS category_id,
-    c.category_name,
-    i.created_at
-FROM items i
-LEFT JOIN categories c ON i.category_id = c.category_id
-WHERE i.item_id = ?;
+-- Get item by ID
+SELECT
+    item_id,
+    name,
+    category,
+    stock,
+    unit_of_measure,
+    description,
+    status
+FROM items
+WHERE item_id = ?;
 
 -- Get items by category
-SELECT 
-    i.item_id,
-    i.item_name,
-    i.unit_type,
-    i.reorder_level,
-    i.current_stock,
-    i.status,
-    c.category_name
-FROM items i
-INNER JOIN categories c ON i.category_id = c.category_id
-WHERE c.category_name = ?
-ORDER BY i.item_name ASC;
+SELECT
+    item_id,
+    name,
+    category,
+    stock,
+    unit_of_measure,
+    status
+FROM items
+WHERE category = ?
+ORDER BY name ASC;
 
--- Get low stock items (below reorder level)
-SELECT 
-    i.item_id,
-    i.item_name,
-    i.current_stock,
-    i.reorder_level,
-    i.unit_type,
-    c.category_name,
-    (i.reorder_level - i.current_stock) AS shortage_amount
-FROM items i
-INNER JOIN categories c ON i.category_id = c.category_id
-WHERE i.current_stock < i.reorder_level
-AND i.status = 'AVAILABLE'
-ORDER BY shortage_amount DESC;
+-- Get low stock items (threshold is a parameter)
+SELECT
+    item_id,
+    name,
+    category,
+    stock,
+    unit_of_measure,
+    status
+FROM items
+WHERE stock <= ?
+AND status IN ('AVAILABLE', 'LOW_STOCK')
+ORDER BY stock ASC, name ASC;
 
 -- Get out of stock items
-SELECT 
-    i.item_id,
-    i.item_name,
-    i.current_stock,
-    i.unit_type,
-    c.category_name
-FROM items i
-INNER JOIN categories c ON i.category_id = c.category_id
-WHERE i.current_stock = 0
-AND i.status = 'AVAILABLE';
+SELECT
+    item_id,
+    name,
+    category,
+    stock,
+    unit_of_measure,
+    status
+FROM items
+WHERE stock = 0
+OR status = 'OUT_OF_STOCK'
+ORDER BY name ASC;
 
 -- Search items by name (case-insensitive)
-SELECT 
-    i.item_id,
-    i.item_name,
-    i.unit_type,
-    i.current_stock,
-    i.status,
-    c.category_name
-FROM items i
-LEFT JOIN categories c ON i.category_id = c.category_id
-WHERE LOWER(i.item_name) LIKE LOWER(CONCAT('%', ?, '%'))
-ORDER BY i.item_name ASC;
+SELECT
+    item_id,
+    name,
+    category,
+    stock,
+    unit_of_measure,
+    status
+FROM items
+WHERE LOWER(name) LIKE LOWER(CONCAT('%', ?, '%'))
+ORDER BY name ASC;
 
 -- Get items by status
-SELECT 
-    i.item_id,
-    i.item_name,
-    i.current_stock,
-    i.unit_type,
-    i.status,
-    c.category_name
-FROM items i
-LEFT JOIN categories c ON i.category_id = c.category_id
-WHERE i.status = ?
-ORDER BY i.item_name ASC;
-
--- Get total inventory value (if cost tracking is added later)
-SELECT 
-    COUNT(*) AS total_items,
-    SUM(current_stock) AS total_stock_units
+SELECT
+    item_id,
+    name,
+    category,
+    stock,
+    unit_of_measure,
+    status
 FROM items
-WHERE status = 'AVAILABLE';
+WHERE status = ?
+ORDER BY name ASC;
 
 -- =========================================
 -- UPDATE OPERATIONS
@@ -122,44 +104,44 @@ WHERE status = 'AVAILABLE';
 
 -- Update item details
 UPDATE items
-SET 
-    item_name = ?,
-    unit_type = ?,
-    reorder_level = ?,
-    category_id = ?,
+SET
+    name = ?,
+    category = ?,
+    unit_of_measure = ?,
+    description = ?,
     status = ?
 WHERE item_id = ?;
 
 -- Update item stock (increase)
 UPDATE items
-SET current_stock = current_stock + ?
+SET stock = stock + ?
 WHERE item_id = ?;
 
 -- Update item stock (decrease)
 UPDATE items
-SET current_stock = current_stock - ?
+SET stock = stock - ?
 WHERE item_id = ?
-AND current_stock >= ?;
+AND stock >= ?;
 
--- Update item status based on stock level
+-- Update status from a threshold value
 UPDATE items
 SET status = CASE
-    WHEN current_stock = 0 THEN 'OUT_OF_STOCK'
-    WHEN current_stock < reorder_level THEN 'LOW_STOCK'
+    WHEN stock = 0 THEN 'OUT_OF_STOCK'
+    WHEN stock <= ? THEN 'LOW_STOCK'
     ELSE 'AVAILABLE'
 END
 WHERE item_id = ?;
 
--- Bulk update status for all items
+-- Bulk update status from a threshold value
 UPDATE items
 SET status = CASE
-    WHEN current_stock = 0 THEN 'OUT_OF_STOCK'
-    WHEN current_stock < reorder_level THEN 'LOW_STOCK'
+    WHEN stock = 0 THEN 'OUT_OF_STOCK'
+    WHEN stock <= ? THEN 'LOW_STOCK'
     ELSE 'AVAILABLE'
 END
 WHERE status != 'DISCONTINUED';
 
--- Deactivate/discontinue an item
+-- Discontinue an item
 UPDATE items
 SET status = 'DISCONTINUED'
 WHERE item_id = ?;
@@ -173,13 +155,12 @@ WHERE item_id = ?;
 -- DELETE OPERATIONS
 -- =========================================
 
--- Soft delete (mark as discontinued)
+-- Soft delete (recommended)
 UPDATE items
 SET status = 'DISCONTINUED'
 WHERE item_id = ?;
 
--- Hard delete (use with caution - will affect transaction history)
--- Recommended: Use soft delete instead
+-- Hard delete (use with caution)
 DELETE FROM items
 WHERE item_id = ?;
 
@@ -187,35 +168,47 @@ WHERE item_id = ?;
 -- ANALYTICS QUERIES
 -- =========================================
 
--- Get items count by category
-SELECT 
-    c.category_name,
-    COUNT(i.item_id) AS item_count,
-    SUM(i.current_stock) AS total_stock
-FROM categories c
-LEFT JOIN items i ON c.category_id = i.category_id AND i.status = 'AVAILABLE'
-GROUP BY c.category_id, c.category_name
-ORDER BY item_count DESC;
+-- Item count and stock by category
+SELECT
+    category,
+    COUNT(*) AS item_count,
+    SUM(stock) AS total_stock
+FROM items
+GROUP BY category
+ORDER BY item_count DESC, category ASC;
 
--- Get top consumed items (based on OUT transactions)
-SELECT 
+-- Top supplied items (last 30 days)
+SELECT
     i.item_id,
-    i.item_name,
-    i.unit_type,
-    SUM(st.quantity) AS total_consumed,
-    c.category_name
+    i.name,
+    i.category,
+    i.unit_of_measure,
+    COALESCE(SUM(s.quantity), 0) AS total_supplied
 FROM items i
-INNER JOIN categories c ON i.category_id = c.category_id
-INNER JOIN stock_transactions st ON i.item_id = st.item_id
-WHERE st.transaction_type = 'OUT'
-AND st.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-GROUP BY i.item_id, i.item_name, i.unit_type, c.category_name
-ORDER BY total_consumed DESC
+LEFT JOIN supply s ON i.item_id = s.item_id
+    AND s.supply_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+GROUP BY i.item_id, i.name, i.category, i.unit_of_measure
+ORDER BY total_supplied DESC
 LIMIT 10;
 
--- Check if item exists by name
-SELECT EXISTS(
-    SELECT 1 FROM items 
-    WHERE LOWER(item_name) = LOWER(?)
+-- Top borrowed items (last 30 days)
+SELECT
+    i.item_id,
+    i.name,
+    i.category,
+    i.unit_of_measure,
+    COALESCE(SUM(bt.quantity_borrowed), 0) AS total_borrowed
+FROM items i
+LEFT JOIN borrow_transactions bt ON i.item_id = bt.item_id
+    AND bt.borrow_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+GROUP BY i.item_id, i.name, i.category, i.unit_of_measure
+ORDER BY total_borrowed DESC
+LIMIT 10;
+
+-- Check if active item exists by name
+SELECT EXISTS (
+    SELECT 1
+    FROM items
+    WHERE LOWER(name) = LOWER(?)
     AND status != 'DISCONTINUED'
 ) AS item_exists;
