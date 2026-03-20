@@ -98,3 +98,48 @@ CREATE TABLE system_logs (
     timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 );
+
+DROP TRIGGER IF EXISTS trg_issue_food_only;
+DROP TRIGGER IF EXISTS trg_borrow_non_food_only;
+
+DELIMITER //
+CREATE TRIGGER trg_issue_food_only
+BEFORE INSERT ON issue_transactions
+FOR EACH ROW
+BEGIN
+    DECLARE v_item_type VARCHAR(20);
+    SELECT item_type INTO v_item_type
+    FROM items
+    WHERE item_id = NEW.item_id;
+
+    IF v_item_type IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Item not found for issue transaction.';
+    END IF;
+
+    IF v_item_type <> 'FOOD' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Only FOOD items can be inserted into issue_transactions.';
+    END IF;
+END//
+
+CREATE TRIGGER trg_borrow_non_food_only
+BEFORE INSERT ON borrow_transactions
+FOR EACH ROW
+BEGIN
+    DECLARE v_item_type VARCHAR(20);
+    SELECT item_type INTO v_item_type
+    FROM items
+    WHERE item_id = NEW.item_id;
+
+    IF v_item_type IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Item not found for borrow transaction.';
+    END IF;
+
+    IF v_item_type = 'FOOD' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'FOOD items must be recorded in issue_transactions, not borrow_transactions.';
+    END IF;
+END//
+DELIMITER ;

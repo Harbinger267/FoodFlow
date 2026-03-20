@@ -6,7 +6,10 @@ public class Usage {
 
     public enum Status {
         ISSUED,
-        RETURNED
+        BORROWED,
+        PARTIALLY_RETURNED,
+        RETURNED,
+        LOST
     }
 
     private int usageId;

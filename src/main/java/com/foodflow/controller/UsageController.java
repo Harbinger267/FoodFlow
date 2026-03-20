@@ -59,8 +59,15 @@ public class UsageController extends HttpServlet {
 
         try {
             int quantity = Integer.parseInt(quantityStr);
-            usageService.recordUsage(Integer.parseInt(itemId), quantity, user.getUserId(), issuedTo);
-            response.sendRedirect("usage");
+            boolean recorded = usageService.recordUsage(Integer.parseInt(itemId), quantity, user.getUserId(), issuedTo);
+            if (recorded) {
+                response.sendRedirect("usage");
+            } else {
+                request.setAttribute("error", "Failed to record transaction. Check stock and item configuration.");
+                request.setAttribute("items", itemDAO.getAllItems());
+                request.setAttribute("usageEntries", usageDAO.getAllUsage());
+                request.getRequestDispatcher("/usage/list.jsp").forward(request, response);
+            }
         } catch (NumberFormatException e) {
             request.setAttribute("error", "Invalid quantity");
             request.setAttribute("items", itemDAO.getAllItems());

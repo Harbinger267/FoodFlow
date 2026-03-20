@@ -9,7 +9,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Issued Items</title>
+    <title>Issue/Borrow Items</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../assets/css/app.css">
 </head>
@@ -17,9 +17,9 @@
 <main class="shell">
     <section class="page-card page-head">
         <div>
-            <p class="eyebrow">Issued Items</p>
-            <h1>Record items used</h1>
-            <p>Implements the Store Keeper flow for issuing stock and deducting it from inventory.</p>
+            <p class="eyebrow">Usage Transactions</p>
+            <h1>Record issue/borrow operations</h1>
+            <p>Food items are issued (non-returnable), while utensil/tool items are borrowed (returnable).</p>
         </div>
         <div class="nav-links">
             <a class="button secondary" href="../dashboard">Dashboard</a>
@@ -33,7 +33,7 @@
 
     <section class="content-grid">
         <article class="form-card">
-            <h2>Issue stock</h2>
+            <h2>Record transaction</h2>
             <form method="post" action="../usage">
                 <label>
                     Item
@@ -43,17 +43,17 @@
                         <% }} %>
                     </select>
                 </label>
-                <label>Quantity issued<input type="number" name="quantity" step="1" min="1" required></label>
-                <label>Issued to<input type="text" name="issuedTo" placeholder="Department or person"></label>
+                <label>Quantity<input type="number" name="quantity" step="1" min="1" required></label>
+                <label>Issued/Borrowed to<input type="text" name="issuedTo" placeholder="Department or person"></label>
                 <button type="submit">Deduct from inventory</button>
             </form>
         </article>
 
         <article class="table-card">
-            <h2>Issued records</h2>
+            <h2>Usage records</h2>
             <table>
                 <thead>
-                <tr><th>Date</th><th>Item</th><th>Qty</th><th>Status</th><th>Recorded By</th></tr>
+                <tr><th>Date</th><th>Item</th><th>Qty</th><th>Status</th><th>To</th><th>Recorded By</th></tr>
                 </thead>
                 <tbody>
                 <% if (usageEntries != null && !usageEntries.isEmpty()) { %>
@@ -63,11 +63,12 @@
                         <td><%= usage.getItemName() %></td>
                         <td><%= usage.getQuantity() %></td>
                         <td><%= usage.getStatus() %></td>
+                        <td><%= usage.getIssuedTo() %></td>
                         <td><%= usage.getItemUserName() %></td>
                     </tr>
                     <% } %>
                 <% } else { %>
-                    <tr><td colspan="5">No issued items recorded yet.</td></tr>
+                    <tr><td colspan="6">No usage transactions recorded yet.</td></tr>
                 <% } %>
                 </tbody>
             </table>
