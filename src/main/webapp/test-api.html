@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodFlow API Test Page</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .test-btn:hover {
+            background: #2980b9;
+        }
+        .test-btn.success {
+            background: #27ae60;
+        }
+        .test-btn.warning {
+            background: #f39c12;
+        }
+        .result {
+            background: #ecf0f1;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .result pre {
+            margin: 0;
+            white-space: pre-wrap;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.success {
+            background: #27ae60;
+            color: white;
+        }
+        .status.error {
+            background: #e74c3c;
+            color: white;
+        }
+        .endpoint {
+            background: #34495e;
+            color: #ecf0f1;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 FoodFlow API Integration Test Page</h1>
+    
+    <div class="test-section">
+        <h2>Dashboard API Tests</h2>
+        
+        <div>
+            <button class="test-btn" onclick="testGetDashboardStats()">Get Dashboard Stats</button>
+            <button class="test-btn" onclick="testGetLowStock()">Get Low Stock</button>
+            <button class="test-btn" onclick="testGetRecentActivity()">Get Recent Activity</button>
+            <button class="test-btn" onclick="testGetChartData()">Get Chart Data</button>
+        </div>
+        
+        <div id="dashboard-result" class="result" style="display:none;"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Items API Tests</h2>
+        
+        <div>
+            <button class="test-btn" onclick="testGetAllItems()">Get All Items</button>
+            <button class="test-btn" onclick="testSearchItems()">Search Items</button>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Add New Item:</label>
+                <input type="text" id="newItemName" placeholder="Item Name">
+                <select id="newItemCategory">
+                    <option value="Perishable">Perishable</option>
+                    <option value="Non-Perishable">Non-Perishable</option>
+                </select>
+                <input type="number" id="newItemQty" placeholder="Quantity" style="margin-top: 10px;">
+                <button class="test-btn success" onclick="testAddItem()" style="margin-top: 10px;">Add Item</button>
+            </div>
+        </div>
+        
+        <div id="items-result" class="result" style="display:none;"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Damage API Tests</h2>
+        
+        <div>
+            <button class="test-btn" onclick="testGetAllDamage()">Get All Damage</button>
+            <button class="test-btn" onclick="testGetDamageTypes()">Get Damage Types</button>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Record Damage:</label>
+                <input type="number" id="damageItemId" placeholder="Item ID">
+                <input type="number" id="damageQty" placeholder="Quantity" style="margin-top: 10px;">
+                <select id="damageType" style="margin-top: 10px;">
+                    <option value="Broken">Broken</option>
+                    <option value="Expired">Expired</option>
+                    <option value="Water Damaged">Water Damaged</option>
+                    <option value="Other">Other</option>
+                </select>
+                <input type="text" id="damageReportedBy" placeholder="Reported By" style="margin-top: 10px;">
+                <button class="test-btn warning" onclick="testRecordDamage()" style="margin-top: 10px;">Record Damage</button>
+            </div>
+        </div>
+        
+        <div id="damage-result" class="result" style="display:none;"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Usage API Tests</h2>
+        
+        <div>
+            <button class="test-btn" onclick="testGetAllUsage()">Get All Usage</button>
+            <button class="test-btn" onclick="testGetUsageItems()">Get Usage Items</button>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Record Staff Checkout:</label>
+                <input type="number" id="usageItemId" placeholder="Item ID">
+                <input type="number" id="usageQty" placeholder="Quantity" style="margin-top: 10px;">
+                <input type="text" id="usageStaffName" placeholder="Staff Name" style="margin-top: 10px;">
+                <input type="text" id="usageDept" placeholder="Department" style="margin-top: 10px;">
+                <button class="test-btn" onclick="testRecordUsage()" style="margin-top: 10px;">Record Usage</button>
+            </div>
+        </div>
+        
+        <div id="usage-result" class="result" style="display:none;"></div>
+    </div>
+    
+    <script src="js/api.js"></script>
+    <script>
+        // Helper function to display results
+        function showResult(elementId, data, success = true) {
+            const el = document.getElementById(elementId);
+            el.style.display = 'block';
+            const statusClass = success ? 'success' : 'error';
+            const statusText = success ? '✓ Success' : '✗ Error';
+            el.innerHTML = `<span class="status ${statusClass}">${statusText}</span><pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+        
+        // Dashboard Tests
+        async function testGetDashboardStats() {
+            try {
+                const stats = await FoodFlowAPI.dashboard.getStats();
+                showResult('dashboard-result', stats, true);
+            } catch (error) {
+                showResult('dashboard-result', { error: error.message }, false);
+            }
+        }
+        
+        async function testGetLowStock() {
+            try {
+                const data = await FoodFlowAPI.dashboard.getLowStock();
+                showResult('dashboard-result', data, true);
+            } catch (error) {
+                showResult('dashboard-result', { error: error.message }, false);
+            }
+        }
+        
+        async function testGetRecentActivity() {
+            try {
+                const data = await FoodFlowAPI.dashboard.getRecentActivity();
+                showResult('dashboard-result', data, true);
+            } catch (error) {
+                showResult('dashboard-result', { error: error.message }, false);
+            }
+        }
+        
+        async function testGetChartData() {
+            try {
+                const data = await FoodFlowAPI.dashboard.getChartData();
+                showResult('dashboard-result', data, true);
+            } catch (error) {
+                showResult('dashboard-result', { error: error.message }, false);
+            }
+        }
+        
+        // Items Tests
+        async function testGetAllItems() {
+            try {
+                const items = await FoodFlowAPI.items.getAll();
+                showResult('items-result', { count: items.length, items: items }, true);
+            } catch (error) {
+                showResult('items-result', { error: error.message }, false);
+            }
+        }
+        
+        async function testSearchItems() {
+            const query = prompt('Enter search term:');
+            if (!query) return;
+            
+            try {
+                const items = await FoodFlowAPI.items.search(query);
+                showResult('items-result', { count: items.length, items: items }, true);
+            } catch (error) {
+                showResult('items-result', { error: error.message }, false);
+            }
+        }
+        
+        async function testAddItem() {
+            const itemData = {
+                itemName: document.getElementById('newItemName').value,
+                category: document.getElementById('newItemCategory').value,
+                quantity: document.getElementById('newItemQty').value,
+                minStockLevel: 10
+            };
+            
+            if (!itemData.itemName || !itemData.quantity) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            try {
+                const result = await FoodFlowAPI.items.add(itemData);
+                showResult('items-result', result, result.success);
+                
+                // Clear form
+                document.getElementById('newItemName').value = '';
+                document.getElementById('newItemQty').value = '';
+            } catch (error) {
+                showResult('items-result', { error: error.message }, false);
+            }
+        }
+        
+        // Damage Tests
+        async function testGetAllDamage() {
+            try {
+                const damages = await FoodFlowAPI.damage.getAll();
+                showResult('damage-result', { count: damages.length, damages: damages }, true);
+            } catch (error) {
+                showResult('damage-result', { error: error.message }, false);
+            }
+        }
+        
+        async function testGetDamageTypes() {
+            try {
+                const types = await FoodFlowAPI.damage.getTypes();
+                showResult('damage-result', types, true);
+            } catch (error) {
+                showResult('damage-result', { error: error.message }, false);
+            }
+        }
+        
+        async function testRecordDamage() {
+            const damageData = {
+                itemId: parseInt(document.getElementById('damageItemId').value),
+                quantity: parseInt(document.getElementById('damageQty').value),
+                damageType: document.getElementById('damageType').value,
+                reportedBy: document.getElementById('damageReportedBy').value
+            };
+            
+            if (!damageData.itemId || !damageData.quantity) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            try {
+                const result = await FoodFlowAPI.damage.add(damageData);
+                showResult('damage-result', result, result.success);
+                
+                // Clear form
+                document.getElementById('damageItemId').value = '';
+                document.getElementById('damageQty').value = '';
+                document.getElementById('damageReportedBy').value = '';
+            } catch (error) {
+                showResult('damage-result', { error: error.message }, false);
+            }
+        }
+        
+        // Usage Tests
+        async function testGetAllUsage() {
+            try {
+                const usages = await FoodFlowAPI.usage.getAll();
+                showResult('usage-result', { count: usages.length, usages: usages }, true);
+            } catch (error) {
+                showResult('usage-result', { error: error.message }, false);
+            }
+        }
+        
+        async function testGetUsageItems() {
+            try {
+                const items = await FoodFlowAPI.usage.getItems();
+                showResult('usage-result', { count: items.length, items: items }, true);
+            } catch (error) {
+                showResult('usage-result', { error: error.message }, false);
+            }
+        }
+        
+        async function testRecordUsage() {
+            const usageData = {
+                itemId: parseInt(document.getElementById('usageItemId').value),
+                quantity: parseInt(document.getElementById('usageQty').value),
+                staffName: document.getElementById('usageStaffName').value,
+                department: document.getElementById('usageDept').value
+            };
+            
+            if (!usageData.itemId || !usageData.quantity || !usageData.staffName) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            try {
+                const result = await FoodFlowAPI.usage.add(usageData);
+                showResult('usage-result', result, result.success);
+                
+                // Clear form
+                document.getElementById('usageItemId').value = '';
+                document.getElementById('usageQty').value = '';
+                document.getElementById('usageStaffName').value = '';
+                document.getElementById('usageDept').value = '';
+            } catch (error) {
+                showResult('usage-result', { error: error.message }, false);
+            }
+        }
+        
+        // Auto-run basic test on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('API Test Page Loaded');
+            console.log('Available APIs:', window.FoodFlowAPI);
+        });
+    </script>
+</body>
+</html>

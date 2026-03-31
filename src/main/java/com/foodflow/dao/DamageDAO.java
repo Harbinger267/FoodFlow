@@ -9,7 +9,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,7 +23,7 @@ public class DamageDAO {
             conn.setAutoCommit(false);
             insertStmt.setInt(1, damage.getItemId());
             insertStmt.setDouble(2, damage.getQuantity());
-            insertStmt.setTimestamp(3, Timestamp.valueOf(LocalDateTime.of(damage.getDate(), java.time.LocalTime.NOON)));
+            insertStmt.setTimestamp(3, new Timestamp(System.currentTimeMillis())); // use current time
             insertStmt.setString(4, damage.getDescription());
             if (damage.getReportedByUserId() == null || damage.getReportedByUserId() <= 0) {
                 insertStmt.setNull(5, java.sql.Types.INTEGER);
@@ -41,7 +40,6 @@ public class DamageDAO {
                 conn.rollback();
                 return false;
             }
-
             conn.commit();
             return true;
         } catch (SQLException e) {
@@ -82,10 +80,13 @@ public class DamageDAO {
         damage.setItemId(rs.getInt("item_id"));
         damage.setItemName(rs.getString("item_name"));
         damage.setQuantity(rs.getDouble("quantity"));
+
+        // Store date as String to avoid Gson LocalDate serialization issues
         Timestamp timestamp = rs.getTimestamp("damage_date");
         if (timestamp != null) {
-            damage.setDate(timestamp.toLocalDateTime().toLocalDate());
+            damage.setDateString(timestamp.toLocalDateTime().toLocalDate().toString());
         }
+
         damage.setDescription(rs.getString("description"));
         int reportedBy = rs.getInt("reported_by");
         damage.setReportedByUserId(rs.wasNull() ? null : reportedBy);

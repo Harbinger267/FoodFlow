@@ -60,6 +60,27 @@ public class ItemDAO {
         return items;
     }
 
+    public List<Item> getLowStockItems() {
+        return getLowStockItems(10.0); // Default threshold
+    }
+
+    public List<Item> getLowStockItems(double threshold) {
+        String sql = "SELECT * FROM items WHERE stock <= ? OR status = 'OUT_OF_STOCK' ORDER BY stock ASC";
+        List<Item> items = new ArrayList<>();
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setDouble(1, threshold);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    items.add(mapResultSetToItem(rs));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return items;
+    }
+
     public List<Item> searchItems(String query) {
         if (query == null || query.isBlank()) {
             return getAllItems();

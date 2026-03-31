@@ -8,7 +8,7 @@ public class DatabaseConfig {
 
     private static final String DB_URL = "jdbc:mysql://localhost:3306/foodflow";
     private static final String DB_USER = "root";
-    private static final String DB_PASSWORD = "your_password_here";
+    private static final String DB_PASSWORD = "cess123.";
 
     static {
         try {

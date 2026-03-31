@@ -1,53 +1,1545 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <title>FoodFlow Test Frontend</title>
-        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="stylesheet" href="assets/css/app.css">
-    </head>
-    <body>
-        <main class="shell">
-            <section class="hero">
-                <p class="eyebrow">FoodFlow</p>
-                <h1>Backend Test Frontend</h1>
-                <p class="lede">
-                    This branch keeps the current backend intact and adds a simple browser-facing shell
-                    so you can exercise login, inventory, supply, usage, damage, reporting, and user flows.
-                </p>
-                <div class="actions">
-                    <a class="button primary" href="login.jsp">Open login</a>
-                    <a class="button secondary" href="dashboard">Try dashboard route</a>
-                </div>
-            </section>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>InvenTrack Pro — Inventory Management System</title>
 
-            <section class="panel-grid">
-                <article class="panel">
-                    <h2>Expected routes</h2>
-                    <ul class="plain-list">
-                        <li><a href="items">Inventory items</a></li>
-                        <li><a href="supplies">Supply intake</a></li>
-                        <li><a href="usage">Issued items</a></li>
-                        <li><a href="damage">Damage logging</a></li>
-                        <li><a href="requests">Store requests</a></li>
-                        <li><a href="reports">Reports</a></li>
-                        <li><a href="admin/users">Admin users</a></li>
-                        <li><a href="admin/system">Admin system operations</a></li>
-                    </ul>
-                </article>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
 
-                <article class="panel">
-                    <h2>3-user test system</h2>
-                    <p>These usernames come from <code>database/sample_data.sql</code>.</p>
-                    <ul class="plain-list">
-                        <li><code>Admin User</code> / <code>admin123</code></li>
-                        <li><code>Department Head</code> / <code>head123</code></li>
-                        <li><code>Store Keeper</code> / <code>keeper123</code></li>
-                    </ul>
-                    <p class="muted">This branch now treats the diagrams as canonical: Admin, Department Head, and Store Keeper only.</p>
-                </article>
-            </section>
-        </main>
-        <script src="assets/js/app.js"></script>
-    </body>
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+
+  <!-- Font Awesome 6 -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+
+  <!-- DataTables CSS -->
+  <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
+
+  <!-- EMBEDDED CSS (style.css + animations.css) -->
+  <style>
+/* ============================================================
+   InvenTrack Pro — Main Stylesheet
+   Theme: Deep Navy / Dark Blue Industrial
+   Font: Exo 2 (display) + JetBrains Mono (code/data)
+   ============================================================ */
+
+:root {
+  --navy-950: #030a1a;
+  --navy-900: #060e24;
+  --navy-850: #08142e;
+  --navy-800: #0b1a3a;
+  --navy-750: #0e2048;
+  --navy-700: #112756;
+  --navy-600: #1a3a7a;
+  --navy-500: #1e4a9e;
+  --navy-400: #2563eb;
+  --navy-300: #3b82f6;
+  --navy-200: #93c5fd;
+  --navy-100: #dbeafe;
+
+  --accent-cyan: #06b6d4;
+  --accent-cyan-glow: rgba(6, 182, 212, 0.25);
+  --accent-green: #10b981;
+  --accent-green-glow: rgba(16, 185, 129, 0.2);
+  --accent-red: #ef4444;
+  --accent-red-glow: rgba(239, 68, 68, 0.2);
+  --accent-amber: #f59e0b;
+  --accent-amber-glow: rgba(245, 158, 11, 0.2);
+
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-bright: #f8fafc;
+
+  --border-color: rgba(30, 74, 158, 0.4);
+  --border-bright: rgba(59, 130, 246, 0.5);
+
+  --sidebar-width: 260px;
+  --sidebar-collapsed: 72px;
+  --topbar-height: 70px;
+
+  --shadow-blue: 0 4px 24px rgba(3, 10, 26, 0.8), 0 0 0 1px rgba(30, 74, 158, 0.3);
+  --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.2);
+  --shadow-card: 0 8px 32px rgba(3, 10, 26, 0.6);
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========== LIGHT MODE ========== */
+body.light-mode {
+  --navy-950: #f8fafc;
+  --navy-900: #f1f5f9;
+  --navy-850: #e2e8f0;
+  --navy-800: #cbd5e1;
+  --navy-750: #b0b9c8;
+  --navy-700: #94a3b8;
+  --navy-600: #64748b;
+  --navy-500: #475569;
+  --navy-400: #334155;
+  --navy-300: #1e293b;
+  --navy-200: #0f172a;
+  --navy-100: #020617;
+
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --text-bright: #0f172a;
+
+  --border-color: rgba(15, 23, 42, 0.2);
+  --border-bright: rgba(51, 65, 85, 0.4);
+
+  --shadow-blue: 0 4px 24px rgba(226, 232, 240, 0.5), 0 0 0 1px rgba(51, 65, 85, 0.2);
+  --shadow-glow: 0 0 20px rgba(226, 232, 240, 0.3);
+  --shadow-card: 0 8px 32px rgba(226, 232, 240, 0.4);
+}
+
+/* ========== RESET & BASE ========== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Exo 2', sans-serif;
+  background-color: var(--navy-950);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--navy-900); }
+::-webkit-scrollbar-thumb { background: var(--navy-600); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--navy-400); }
+
+/* ========== SIDEBAR ========== */
+.sidebar {
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  width: var(--sidebar-width);
+  background: linear-gradient(180deg, var(--navy-900) 0%, var(--navy-950) 100%);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  transition: var(--transition);
+  box-shadow: 4px 0 24px rgba(3, 10, 26, 0.5);
+}
+.sidebar.collapsed {
+  width: var(--sidebar-collapsed);
+}
+.sidebar.collapsed .logo-title,
+.sidebar.collapsed .logo-sub,
+.sidebar.collapsed .nav-item span,
+.sidebar.collapsed .nav-section-label,
+.sidebar.collapsed .user-name,
+.sidebar.collapsed .user-role {
+  display: none;
+}
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 18px;
+  border-bottom: 1px solid var(--border-color);
+  min-height: var(--topbar-height);
+}
+.logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+.logo-icon {
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg, var(--navy-400), var(--accent-cyan));
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 0 14px var(--accent-cyan-glow);
+}
+.logo-title {
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: var(--text-bright);
+  line-height: 1;
+}
+.logo-sub {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--accent-cyan);
+  line-height: 1;
+  display: block;
+  margin-top: 2px;
+}
+.sidebar-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+.sidebar-toggle:hover { color: var(--navy-300); background: var(--navy-800); }
+.nav-menu {
+  list-style: none;
+  padding: 12px 0;
+  flex: 1;
+  overflow-y: auto;
+}
+.nav-section-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  padding: 16px 20px 6px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.nav-item a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 20px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 0;
+  transition: var(--transition);
+  border-left: 3px solid transparent;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.nav-item a i {
+  width: 18px;
+  text-align: center;
+  font-size: 15px;
+  flex-shrink: 0;
+  transition: var(--transition);
+}
+.nav-item a:hover {
+  color: var(--navy-200);
+  background: rgba(30, 74, 158, 0.15);
+  border-left-color: var(--navy-400);
+}
+.nav-item.active a {
+  color: var(--text-bright);
+  background: rgba(37, 99, 235, 0.2);
+  border-left-color: var(--accent-cyan);
+}
+.nav-item.active a i {
+  color: var(--accent-cyan);
+}
+.sidebar-footer {
+  padding: 16px;
+  border-top: 1px solid var(--border-color);
+}
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.avatar {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--navy-600), var(--navy-500));
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--navy-200);
+  font-size: 15px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-bright);
+}
+.user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.user-role {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ========== MAIN WRAPPER ========== */
+.main-wrapper {
+  margin-left: var(--sidebar-width);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition: var(--transition);
+}
+.main-wrapper.collapsed {
+  margin-left: var(--sidebar-collapsed);
+}
+
+/* ========== TOPBAR ========== */
+.topbar {
+  height: var(--topbar-height);
+  background: var(--navy-900);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 900;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 2px 12px rgba(3, 10, 26, 0.4);
+}
+.page-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-bright);
+  line-height: 1.2;
+}
+.breadcrumb-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+.bc-item {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.bc-item.active { color: var(--accent-cyan); }
+.bc-sep { font-size: 9px; color: var(--text-muted); }
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-wrap i {
+  position: absolute;
+  left: 12px;
+  color: #333;
+  font-size: 13px;
+}
+.search-wrap input {
+  background: #fff;
+  border: 1px solid #ddd;
+  color: #000;
+  border-radius: 8px;
+  padding: 8px 14px 8px 36px;
+  font-size: 13px;
+  font-family: 'Exo 2', sans-serif;
+  width: 220px;
+  outline: none;
+  transition: var(--transition);
+}
+.search-wrap input:focus {
+  border-color: var(--navy-400);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  width: 260px;
+}
+.search-wrap input::placeholder { color: #999; }
+body.light-mode .search-wrap i { color: var(--text-muted); }
+body.light-mode .search-wrap input {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+}
+body.light-mode .search-wrap input::placeholder { color: #94a3b8; }
+.icon-btn {
+  width: 38px; height: 38px;
+  background: var(--navy-800);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  transition: var(--transition);
+}
+.icon-btn:hover {
+  border-color: var(--navy-400);
+  color: var(--navy-300);
+  background: var(--navy-750);
+}
+.badge-dot {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 7px; height: 7px;
+  background: var(--accent-red);
+  border-radius: 50%;
+  border: 1px solid var(--navy-900);
+  animation: pulse-dot 2s infinite;
+}
+.date-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--navy-800);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.date-badge i { color: var(--navy-300); }
+
+/* ========== PAGE CONTAINER ========== */
+.page-container {
+  padding: 28px;
+  flex: 1;
+  background: var(--navy-950);
+  background-image:
+    radial-gradient(ellipse at 10% 20%, rgba(30, 74, 158, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 90% 80%, rgba(6, 182, 212, 0.05) 0%, transparent 50%);
+}
+
+/* ========== PAGES ========== */
+.page { display: none; }
+.page.active {
+  display: block;
+  animation: fadeIn 0.35s ease;
+}
+
+/* ========== STAT CARDS ========== */
+.stat-card {
+  background: linear-gradient(135deg, var(--navy-850) 0%, var(--navy-800) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: var(--shadow-card);
+}
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-card), var(--shadow-glow);
+  border-color: var(--border-bright);
+}
+.stat-card[data-color="blue"] { border-left: 3px solid var(--navy-400); }
+.stat-card[data-color="blue"] .stat-icon { background: rgba(37, 99, 235, 0.15); color: var(--navy-300); }
+.stat-card[data-color="green"] { border-left: 3px solid var(--accent-green); }
+.stat-card[data-color="green"] .stat-icon { background: var(--accent-green-glow); color: var(--accent-green); }
+.stat-card[data-color="red"] { border-left: 3px solid var(--accent-red); }
+.stat-card[data-color="red"] .stat-icon { background: var(--accent-red-glow); color: var(--accent-red); }
+.stat-card[data-color="amber"] { border-left: 3px solid var(--accent-amber); }
+.stat-card[data-color="amber"] .stat-icon { background: var(--accent-amber-glow); color: var(--accent-amber); }
+.stat-icon {
+  width: 54px; height: 54px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.stat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.stat-value {
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--text-bright);
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1.1;
+}
+.stat-trend {
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.stat-trend.up { color: var(--accent-green); }
+.stat-trend.down { color: var(--accent-red); }
+.stat-bg-icon {
+  position: absolute;
+  right: -10px; bottom: -10px;
+  font-size: 72px;
+  color: rgba(30, 74, 158, 0.06);
+  pointer-events: none;
+}
+
+/* ========== CARD PANELS ========== */
+.card-panel {
+  background: linear-gradient(135deg, var(--navy-850) 0%, var(--navy-800) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: var(--shadow-card);
+  transition: var(--transition);
+  cursor: pointer;
+}
+.card-panel:hover {
+  border-color: var(--border-bright);
+  box-shadow: var(--shadow-card), 0 0 16px rgba(37, 99, 235, 0.1);
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-color);
+}
+.panel-header h5 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+}
+.panel-header h5 i {
+  color: var(--accent-cyan);
+  font-size: 15px;
+}
+.panel-actions {
+  display: flex;
+  gap: 6px;
+}
+.btn-mini {
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'Exo 2', sans-serif;
+  background: var(--navy-800);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  letter-spacing: 0.5px;
+}
+.btn-mini:hover, .btn-mini.active {
+  background: var(--navy-500);
+  border-color: var(--navy-400);
+  color: #fff;
+}
+
+/* ========== BADGES ========== */
+.badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+.badge-blue { background: rgba(37, 99, 235, 0.2); color: var(--navy-300); border: 1px solid rgba(37, 99, 235, 0.4); }
+.badge-green { background: var(--accent-green-glow); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.4); }
+.badge-red { background: var(--accent-red-glow); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.4); }
+.badge-amber { background: var(--accent-amber-glow); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.4); }
+.badge-warn { background: var(--accent-amber-glow); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.4); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+.badge-cyan { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); border: 1px solid rgba(6, 182, 212, 0.35); }
+
+/* ========== TABLES ========== */
+.table-dark-custom {
+  color: var(--text-primary) !important;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+.table-dark-custom thead th {
+  background: var(--navy-800) !important;
+  color: var(--text-muted) !important;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-color) !important;
+  border-top: none !important;
+  white-space: nowrap;
+}
+.table-dark-custom tbody tr {
+  transition: var(--transition);
+}
+.table-dark-custom tbody tr:hover td {
+  background: rgba(30, 74, 158, 0.12) !important;
+}
+.table-dark-custom tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(30, 74, 158, 0.15) !important;
+  border-top: none !important;
+  vertical-align: middle;
+  color: var(--text-primary) !important;
+  background: transparent !important;
+}
+.dataTables_wrapper .dataTables_filter input,
+.dataTables_wrapper .dataTables_length select {
+  background: #fff !important;
+  border: 1px solid #ddd !important;
+  color: #000 !important;
+  border-radius: 6px !important;
+  padding: 6px 10px !important;
+  font-family: 'Exo 2', sans-serif !important;
+}
+.dataTables_wrapper .dataTables_filter label,
+.dataTables_wrapper .dataTables_length label,
+.dataTables_wrapper .dataTables_info {
+  color: var(--text-secondary) !important;
+  font-size: 12px;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+  background: var(--navy-800) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-secondary) !important;
+  border-radius: 6px !important;
+  padding: 4px 10px !important;
+  font-size: 12px;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.current,
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+  background: var(--navy-500) !important;
+  border-color: var(--navy-400) !important;
+  color: #fff !important;
+}
+
+/* ========== ACTION BUTTONS ========== */
+.btn-primary-action {
+  background: linear-gradient(135deg, var(--navy-500), var(--navy-400));
+  border: 1px solid var(--navy-400);
+  color: #fff;
+  padding: 9px 18px;
+  border-radius: var(--radius-sm);
+  font-family: 'Exo 2', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-primary-action:hover {
+  background: linear-gradient(135deg, var(--navy-400), var(--accent-cyan));
+  box-shadow: 0 0 14px var(--accent-cyan-glow);
+  transform: translateY(-1px);
+}
+.btn-danger-action {
+  background: linear-gradient(135deg, #7f1d1d, var(--accent-red));
+  border-color: var(--accent-red);
+}
+.btn-danger-action:hover {
+  background: linear-gradient(135deg, var(--accent-red), #fca5a5);
+  box-shadow: 0 0 14px var(--accent-red-glow);
+}
+.btn-action-sm {
+  width: 28px; height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--navy-800);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: var(--transition);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.btn-action-sm:hover { border-color: var(--navy-300); color: var(--navy-200); background: var(--navy-750); }
+.btn-action-sm.danger:hover { border-color: var(--accent-red); color: var(--accent-red); }
+
+/* ========== PAGE TOOLBAR ========== */
+.page-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.filter-group {
+  display: flex;
+  gap: 10px;
+}
+.form-select.form-select-sm,
+.form-select.form-control-dark {
+  background: #fff;
+  border: 1px solid #ddd;
+  color: #000;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  cursor: pointer;
+  outline: none;
+}
+.form-select:focus {
+  border-color: var(--navy-400);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+.form-select option {
+  background: #fff;
+  color: #000;
+}
+
+/* ========== FORM CONTROLS ========== */
+.form-control-dark {
+  background: #fff !important;
+  border: 1px solid #ddd !important;
+  color: #000 !important;
+  font-family: 'Exo 2', sans-serif;
+  border-radius: var(--radius-sm) !important;
+  padding: 10px 14px !important;
+  font-size: 13px;
+  transition: var(--transition);
+}
+.form-control-dark:focus {
+  border-color: var(--navy-400) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+  outline: none;
+}
+.form-control-dark::placeholder { color: #999; }
+.form-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+/* ========== MODALS ========== */
+.modal-dark {
+  background: var(--navy-850) !important;
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-lg) !important;
+  box-shadow: 0 24px 64px rgba(3, 10, 26, 0.8), 0 0 0 1px rgba(37, 99, 235, 0.2);
+}
+.modal-dark .modal-header {
+  border-bottom: 1px solid var(--border-color);
+  padding: 18px 22px;
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.1), transparent);
+}
+.modal-dark .modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-bright);
+  display: flex; align-items: center; gap: 10px;
+}
+.modal-dark .modal-title i { color: var(--accent-cyan); }
+.modal-dark .modal-body { padding: 22px; background: transparent; }
+.modal-dark .modal-footer {
+  border-top: 1px solid var(--border-color);
+  padding: 16px 22px;
+  background: transparent;
+}
+.modal-backdrop { background-color: #000 !important; opacity: 0.7 !important; }
+
+/* ========== ALERT LIST ========== */
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.alert-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--navy-800);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.alert-item.warn { border-left: 3px solid var(--accent-amber); }
+.alert-item.danger { border-left: 3px solid var(--accent-red); }
+.alert-item-icon { font-size: 16px; }
+.alert-item.warn .alert-item-icon { color: var(--accent-amber); }
+.alert-item.danger .alert-item-icon { color: var(--accent-red); }
+.alert-item-name { flex: 1; font-weight: 600; }
+.alert-item-qty { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 12px; }
+
+/* ========== ACTIVITY LIST ========== */
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 13px;
+}
+.activity-icon {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.activity-icon.add { background: var(--accent-green-glow); color: var(--accent-green); }
+.activity-icon.damage { background: var(--accent-red-glow); color: var(--accent-red); }
+.activity-icon.checkout { background: var(--accent-amber-glow); color: var(--accent-amber); }
+.activity-text { flex: 1; line-height: 1.4; }
+.activity-text strong { color: var(--text-bright); }
+.activity-time { font-size: 11px; color: var(--text-muted); white-space: nowrap; font-family: 'JetBrains Mono', monospace; }
+
+/* ========== STOCK LEVEL BAR ========== */
+.stock-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 100px; }
+.stock-bar { flex: 1; height: 5px; background: var(--navy-700); border-radius: 99px; overflow: hidden; }
+.stock-bar-fill { height: 100%; border-radius: 99px; transition: width 0.5s ease; }
+.stock-bar-fill.high { background: var(--accent-green); }
+.stock-bar-fill.medium { background: var(--accent-amber); }
+.stock-bar-fill.low { background: var(--accent-red); }
+.stock-pct { font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
+
+/* ========== EXPIRY INDICATOR ========== */
+.expiry-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+.expiry-badge.fresh { background: var(--accent-green-glow); color: var(--accent-green); }
+.expiry-badge.soon { background: var(--accent-amber-glow); color: var(--accent-amber); }
+.expiry-badge.expired { background: var(--accent-red-glow); color: var(--accent-red); }
+
+/* ========== TOAST ========== */
+.toast {
+  background: var(--navy-800) !important;
+  border: 1px solid var(--border-bright) !important;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 13px;
+  min-width: 280px;
+  border-radius: var(--radius-md) !important;
+}
+.toast.bg-success { border-color: var(--accent-green) !important; }
+.toast.bg-danger { border-color: var(--accent-red) !important; }
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 991px) {
+  .sidebar { width: var(--sidebar-collapsed); }
+  .sidebar .logo-title, .sidebar .logo-sub,
+  .sidebar .nav-item span, .sidebar .nav-section-label,
+  .sidebar .user-name, .sidebar .user-role { display: none; }
+  .main-wrapper { margin-left: var(--sidebar-collapsed); }
+  .search-wrap input { width: 160px; }
+  .search-wrap input:focus { width: 190px; }
+}
+@media (max-width: 576px) {
+  .page-container { padding: 16px; }
+  .topbar { padding: 0 16px; }
+  .search-wrap { display: none; }
+}
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.detail-item { background: var(--navy-800); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px; }
+.detail-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 700; margin-bottom: 4px; }
+.detail-value { font-size: 14px; color: var(--text-bright); font-weight: 600; }
+
+/* ============================================================
+   InvenTrack Pro — Animations & Effects CSS
+   ============================================================ */
+
+/* ========== SHAKE CARD EFFECT ========== */
+@keyframes shake {
+  0%   { transform: translateX(0); }
+  15%  { transform: translateX(-4px) rotate(-0.4deg); }
+  30%  { transform: translateX(4px) rotate(0.4deg); }
+  45%  { transform: translateX(-3px) rotate(-0.3deg); }
+  60%  { transform: translateX(3px) rotate(0.3deg); }
+  75%  { transform: translateX(-2px); }
+  90%  { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
+@keyframes shakeY {
+  0%   { transform: translateY(0); }
+  15%  { transform: translateY(-3px) scale(1.005); }
+  30%  { transform: translateY(2px) scale(0.998); }
+  45%  { transform: translateY(-2px); }
+  60%  { transform: translateY(1px); }
+  75%  { transform: translateY(-1px); }
+  100% { transform: translateY(0); }
+}
+@keyframes shakeGlow {
+  0%   { box-shadow: 0 8px 32px rgba(3, 10, 26, 0.6); }
+  50%  { box-shadow: 0 8px 32px rgba(3, 10, 26, 0.6), 0 0 20px rgba(6, 182, 212, 0.25), 0 0 40px rgba(37, 99, 235, 0.1); }
+  100% { box-shadow: 0 8px 32px rgba(3, 10, 26, 0.6); }
+}
+.shake-card { animation: none; will-change: transform; }
+.shake-card:hover {
+  animation: shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both,
+             shakeGlow 0.45s ease both;
+  transform-origin: center center;
+}
+.stat-card.shake-card:hover {
+  animation: shakeY 0.4s ease both, shakeGlow 0.4s ease both;
+}
+
+/* ========== FADE IN ========== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ========== PULSE DOT ========== */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(0.75); }
+}
+
+/* ========== GLOW BORDER ANIMATION ========== */
+@keyframes glowBorder {
+  0%, 100% { border-color: rgba(30, 74, 158, 0.4); }
+  50%       { border-color: rgba(6, 182, 212, 0.6); box-shadow: 0 0 16px rgba(6, 182, 212, 0.2); }
+}
+
+/* ========== ROW SLIDE IN ========== */
+@keyframes rowIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.row-enter { animation: rowIn 0.3s ease forwards; }
+
+/* ========== NUMBER COUNT UP ========== */
+.count-up { display: inline-block; transition: all 0.05s linear; }
+
+/* ========== SKELETON LOADER ========== */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg,
+    rgba(17, 39, 86, 0.5) 25%,
+    rgba(30, 74, 158, 0.25) 50%,
+    rgba(17, 39, 86, 0.5) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: 4px;
+}
+
+/* ========== STATUS INDICATOR ========== */
+@keyframes statusPulse {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; }
+  50%       { box-shadow: 0 0 0 5px transparent; }
+}
+.status-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.status-dot.active  { background: #10b981; animation: statusPulse 2s infinite; }
+.status-dot.warning { background: #f59e0b; animation: statusPulse 2s infinite 0.5s; }
+.status-dot.danger  { background: #ef4444; animation: statusPulse 2s infinite 1s; }
+.status-dot.neutral { background: #64748b; }
+
+/* ========== TABLE ROW HOVER HIGHLIGHT ========== */
+.table-dark-custom tbody tr { animation: fadeIn 0.25s ease; }
+
+/* ========== SIDEBAR NAV ITEMS ========== */
+.nav-item { animation: fadeInLeft 0.3s ease; }
+.nav-item:nth-child(1)  { animation-delay: 0.02s; }
+.nav-item:nth-child(2)  { animation-delay: 0.04s; }
+.nav-item:nth-child(3)  { animation-delay: 0.06s; }
+.nav-item:nth-child(4)  { animation-delay: 0.08s; }
+.nav-item:nth-child(5)  { animation-delay: 0.10s; }
+.nav-item:nth-child(6)  { animation-delay: 0.12s; }
+.nav-item:nth-child(7)  { animation-delay: 0.14s; }
+.nav-item:nth-child(8)  { animation-delay: 0.16s; }
+.nav-item:nth-child(9)  { animation-delay: 0.18s; }
+
+/* ========== MODAL BOUNCE IN ========== */
+.modal.show .modal-dialog {
+  animation: fadeInScale 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ========== CARD STAGGER ON PAGE LOAD ========== */
+.page.active .col-xl-3:nth-child(1) .stat-card { animation: fadeIn 0.3s ease 0.05s both; }
+.page.active .col-xl-3:nth-child(2) .stat-card { animation: fadeIn 0.3s ease 0.12s both; }
+.page.active .col-xl-3:nth-child(3) .stat-card { animation: fadeIn 0.3s ease 0.19s both; }
+.page.active .col-xl-3:nth-child(4) .stat-card { animation: fadeIn 0.3s ease 0.26s both; }
+.page.active .col-md-4:nth-child(1) .stat-card { animation: fadeIn 0.3s ease 0.05s both; }
+.page.active .col-md-4:nth-child(2) .stat-card { animation: fadeIn 0.3s ease 0.12s both; }
+.page.active .col-md-4:nth-child(3) .stat-card { animation: fadeIn 0.3s ease 0.19s both; }
+
+/* ========== PANEL STAGGER ========== */
+.page.active .card-panel { animation: fadeIn 0.35s ease 0.1s both; }
+.page.active .col-xl-8 .card-panel { animation: fadeIn 0.35s ease 0.12s both; }
+.page.active .col-xl-4 .card-panel { animation: fadeIn 0.35s ease 0.2s both; }
+.page.active .col-xl-6:nth-child(1) .card-panel { animation: fadeIn 0.35s ease 0.15s both; }
+.page.active .col-xl-6:nth-child(2) .card-panel { animation: fadeIn 0.35s ease 0.25s both; }
+
+/* ========== TOPBAR ENTRANCE ========== */
+.topbar { animation: fadeIn 0.3s ease; }
+
+/* ========== GLOW LINE ========== */
+.glow-line {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+  border: none;
+  margin: 0;
+  opacity: 0.4;
+}
+
+/* ========== SCAN LINE EFFECT (decorative) ========== */
+@keyframes scanline {
+  0%   { top: 0; }
+  100% { top: 100%; }
+}
+
+/* ========== LOGO PULSE ========== */
+@keyframes logoPulse {
+  0%, 100% { box-shadow: 0 0 14px rgba(6, 182, 212, 0.25); }
+  50%       { box-shadow: 0 0 22px rgba(6, 182, 212, 0.45), 0 0 40px rgba(37, 99, 235, 0.2); }
+}
+.logo-icon { animation: logoPulse 3s ease-in-out infinite; }
+
+/* ========== DELETE ROW ANIMATION ========== */
+@keyframes rowOut {
+  from { opacity: 1; transform: translateX(0); max-height: 60px; }
+  to   { opacity: 0; transform: translateX(20px); max-height: 0; padding: 0; }
+}
+.row-deleting {
+  animation: rowOut 0.3s ease forwards;
+  overflow: hidden;
+}
+
+/* ========== LOW STOCK ALERT PULSE ========== */
+@keyframes alertPulse {
+  0%, 100% { border-left-color: #f59e0b; }
+  50%       { border-left-color: #fcd34d; box-shadow: 0 0 8px rgba(245, 158, 11, 0.3); }
+}
+.alert-item.warn { animation: alertPulse 2.5s ease infinite; }
+
+@keyframes dangerPulse {
+  0%, 100% { border-left-color: #ef4444; }
+  50%       { border-left-color: #f87171; box-shadow: 0 0 8px rgba(239, 68, 68, 0.3); }
+}
+.alert-item.danger { animation: dangerPulse 2s ease infinite; }
+  </style>
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-wrap">
+        <span class="logo-icon"><i class="fa-solid fa-warehouse"></i></span>
+        <div>
+          <span class="logo-title">Inventory</span>
+          <span class="logo-sub">MANAGEMENT</span>
+        </div>
+      </div>
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle Sidebar">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+    </div>
+
+    <ul class="nav-menu">
+      <li class="nav-section-label">MAIN</li>
+      <li class="nav-item active" data-page="dashboard">
+        <a href="#"><i class="fa-solid fa-gauge-high"></i><span>Dashboard</span></a>
+      </li>
+      <li class="nav-item" data-page="available">
+        <a href="#"><i class="fa-solid fa-boxes-stacked"></i><span>Available Stock</span></a>
+      </li>
+      <li class="nav-item" data-page="damaged">
+        <a href="#"><i class="fa-solid fa-triangle-exclamation"></i><span>Damaged Items</span></a>
+      </li>
+      <li class="nav-section-label">CATEGORIES</li>
+      <li class="nav-item" data-page="perishable">
+        <a href="#"><i class="fa-solid fa-apple-whole"></i><span>Perishable Goods</span></a>
+      </li>
+      <li class="nav-item" data-page="nonperishable">
+        <a href="#"><i class="fa-solid fa-box-archive"></i><span>Non-Perishable Goods</span></a>
+      </li>
+      <li class="nav-section-label">RECORDS</li>
+      <li class="nav-item" data-page="staffrecords">
+        <a href="#"><i class="fa-solid fa-users"></i><span>Staff Records</span></a>
+      </li>
+      <li class="nav-item" data-page="reports">
+        <a href="#"><i class="fa-solid fa-chart-bar"></i><span>Reports</span></a>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <div class="avatar"><i class="fa-solid fa-user-tie"></i></div>
+        <div>
+          <div class="user-name">User</div>
+          <div class="user-role">Store Manager</div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-wrapper" id="mainWrapper">
+
+    <!-- TOP NAV -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <h2 class="page-title" id="pageTitle">Dashboard</h2>
+        <div class="breadcrumb-wrap">
+          <span class="bc-item">Home</span>
+          <i class="fa-solid fa-chevron-right bc-sep"></i>
+          <span class="bc-item active" id="bcActive">Dashboard</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="search-wrap">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" placeholder="Search inventory..." id="globalSearch"/>
+        </div>
+        <button class="icon-btn" id="themeBtn">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+        <div class="date-badge">
+          <i class="fa-regular fa-calendar"></i>
+          <span id="currentDate"></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- PAGE CONTAINER -->
+    <div class="page-container">
+
+      <!-- ========== DASHBOARD PAGE ========== -->
+      <section class="page active" id="page-dashboard">
+
+        <!-- STAT CARDS -->
+        <div class="row g-4 mb-4">
+          <div class="col-xl-3 col-md-6">
+            <div class="stat-card shake-card" data-color="blue">
+              <div class="stat-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Total Items</span>
+                <span class="stat-value" id="totalItems">0</span>
+              </div>
+              <div class="stat-bg-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+            </div>
+          </div>
+          <div class="col-xl-3 col-md-6">
+            <div class="stat-card shake-card" data-color="green">
+              <div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">In Stock</span>
+                <span class="stat-value" id="inStockCount">0</span>
+              </div>
+              <div class="stat-bg-icon"><i class="fa-solid fa-circle-check"></i></div>
+            </div>
+          </div>
+          <div class="col-xl-3 col-md-6">
+            <div class="stat-card shake-card" data-color="red">
+              <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Damaged Items</span>
+                <span class="stat-value" id="damagedCount">0</span>
+              </div>
+              <div class="stat-bg-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            </div>
+          </div>
+          <div class="col-xl-3 col-md-6">
+            <div class="stat-card shake-card" data-color="amber">
+              <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Staff Checkouts</span>
+                <span class="stat-value" id="staffCheckouts">0</span>
+              </div>
+              <div class="stat-bg-icon"><i class="fa-solid fa-users"></i></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CHARTS ROW -->
+        <div class="row g-4 mb-4">
+          <div class="col-xl-8">
+            <div class="card-panel shake-card">
+              <div class="panel-header">
+                <h5><i class="fa-solid fa-chart-line"></i> Stock Level Trend</h5>
+              </div>
+              <canvas id="stockTrendChart" height="100"></canvas>
+            </div>
+          </div>
+          <div class="col-xl-4">
+            <div class="card-panel shake-card">
+              <div class="panel-header">
+                <h5><i class="fa-solid fa-chart-pie"></i> Category Split</h5>
+              </div>
+              <canvas id="categoryPieChart" height="200"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- LOW STOCK + RECENT ACTIVITY -->
+        <div class="row g-4">
+          <div class="col-xl-6">
+            <div class="card-panel shake-card">
+              <div class="panel-header">
+                <h5><i class="fa-solid fa-triangle-exclamation"></i> Low Stock Alerts</h5>
+                <span class="badge badge-warn" id="lowStockBadge">0</span>
+              </div>
+              <div id="lowStockList" class="alert-list"></div>
+            </div>
+          </div>
+          <div class="col-xl-6">
+            <div class="card-panel shake-card">
+              <div class="panel-header">
+                <h5><i class="fa-solid fa-clock-rotate-left"></i> Recent Activity</h5>
+              </div>
+              <div id="recentActivity" class="activity-list"></div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ========== AVAILABLE STOCK PAGE ========== -->
+      <section class="page" id="page-available">
+        <div class="page-toolbar mb-4">
+          <button class="btn-primary-action" data-bs-toggle="modal" data-bs-target="#addItemModal">
+            <i class="fa-solid fa-plus"></i> Add Item
+          </button>
+        </div>
+        <div class="card-panel shake-card">
+          <div class="panel-header">
+            <h5><i class="fa-solid fa-boxes-stacked"></i> All Available Items</h5>
+          </div>
+          <div class="table-responsive">
+            <table id="availableTable" class="table table-dark-custom" style="width:100%">
+              <thead>
+                <tr>
+                  <th>ID</th><th>Item Name</th><th>Category</th>
+                  <th>Stock Qty</th><th>Unit</th><th>Status</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="availableTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== DAMAGED ITEMS PAGE ========== -->
+      <section class="page" id="page-damaged">
+        <div class="page-toolbar mb-4">
+          <button class="btn-primary-action btn-danger-action" data-bs-toggle="modal" data-bs-target="#addDamagedModal">
+            <i class="fa-solid fa-plus"></i> Report Damage
+          </button>
+        </div>
+        <div class="card-panel shake-card">
+          <div class="panel-header">
+            <h5><i class="fa-solid fa-triangle-exclamation"></i> Damaged Items Register</h5>
+          </div>
+          <div class="table-responsive">
+            <table id="damagedTable" class="table table-dark-custom" style="width:100%">
+              <thead>
+                <tr>
+                  <th>Ref#</th><th>Item Name</th><th>Damage Type</th>
+                  <th>Qty</th><th>Status</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="damagedTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== PERISHABLE PAGE ========== -->
+      <section class="page" id="page-perishable">
+        <div class="card-panel shake-card mb-4">
+          <div class="panel-header">
+            <h5><i class="fa-solid fa-apple-whole"></i> Perishable Goods</h5>
+          </div>
+          <div class="table-responsive">
+            <table id="perishableTable" class="table table-dark-custom" style="width:100%">
+              <thead>
+                <tr>
+                  <th>ID</th><th>Item Name</th><th>Stock Qty</th>
+                  <th>Expiry Date</th><th>Status</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="perishableTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== NON-PERISHABLE PAGE ========== -->
+      <section class="page" id="page-nonperishable">
+        <div class="card-panel shake-card mb-4">
+          <div class="panel-header">
+            <h5><i class="fa-solid fa-box-archive"></i> Non-Perishable Goods</h5>
+          </div>
+          <div class="table-responsive">
+            <table id="nonperishableTable" class="table table-dark-custom" style="width:100%">
+              <thead>
+                <tr>
+                  <th>ID</th><th>Item Name</th><th>Stock Qty</th>
+                  <th>Supplier</th><th>Status</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="nonperishableTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== STAFF RECORDS PAGE ========== -->
+      <section class="page" id="page-staffrecords">
+        <div class="page-toolbar mb-4">
+          <button class="btn-primary-action" data-bs-toggle="modal" data-bs-target="#addStaffCheckoutModal">
+            <i class="fa-solid fa-plus"></i> Log Staff Checkout
+          </button>
+        </div>
+        <div class="card-panel shake-card">
+          <div class="panel-header">
+            <h5><i class="fa-solid fa-clipboard-user"></i> Staff Checkout Records</h5>
+          </div>
+          <div class="table-responsive">
+            <table id="staffTable" class="table table-dark-custom" style="width:100%">
+              <thead>
+                <tr>
+                  <th>Ref#</th><th>Staff Name</th><th>Item</th>
+                  <th>Qty</th><th>Status</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="staffTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== REPORTS PAGE ========== -->
+      <section class="page" id="page-reports">
+        <div class="row g-4 mb-4">
+          <div class="col-xl-6">
+            <div class="card-panel shake-card">
+              <div class="panel-header">
+                <h5><i class="fa-solid fa-chart-bar"></i> Damaged by Type</h5>
+              </div>
+              <canvas id="damagedBarChart" height="200"></canvas>
+            </div>
+          </div>
+          <div class="col-xl-6">
+            <div class="card-panel shake-card">
+              <div class="panel-header">
+                <h5><i class="fa-solid fa-chart-pie"></i> Stock Status</h5>
+              </div>
+              <canvas id="stockStatusChart" height="200"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- end page-container -->
+  </div><!-- end main-wrapper -->
+
+  <!-- ====== MODALS ====== -->
+
+  <!-- Add Item Modal -->
+  <div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content modal-dark">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fa-solid fa-plus"></i> Add New Item</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Item Name *</label>
+              <input type="text" class="form-control form-control-dark" id="itemName" placeholder="Enter item name"/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Category *</label>
+              <select class="form-select form-select-dark" id="itemCategory">
+                <option value="">Select Category</option>
+                <option value="Perishable">Perishable</option>
+                <option value="Non-Perishable">Non-Perishable</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Stock Quantity *</label>
+              <input type="number" class="form-control form-control-dark" id="itemQty" min="0" placeholder="0"/>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Unit</label>
+              <select class="form-select form-control-dark" id="itemUnit">
+                <option>Pieces</option><option>Kg</option><option>Litres</option>
+                <option>Boxes</option><option>Cartons</option><option>Bags</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Min Stock Level</label>
+              <input type="number" class="form-control form-control-dark" id="itemMinLevel" min="0" placeholder="10"/>
+            </div>
+            <div class="col-md-6" id="expiryWrap">
+              <label class="form-label">Expiry Date</label>
+              <input type="date" class="form-control form-control-dark" id="itemExpiry"/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Supplier</label>
+              <input type="text" class="form-control form-control-dark" id="itemSupplier" placeholder="Supplier name"/>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary-action" id="saveItemBtn">Save Item</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Damage Modal -->
+  <div class="modal fade" id="addDamagedModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content modal-dark">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fa-solid fa-triangle-exclamation"></i> Report Damaged Item</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Item Name *</label>
+              <select class="form-select form-control-dark" id="dmgItemName"></select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Quantity Damaged *</label>
+              <input type="number" class="form-control form-control-dark" id="dmgQty" min="1" placeholder="0"/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Damage Type *</label>
+              <select class="form-select form-control-dark" id="dmgType">
+                <option value="">Select Type</option>
+                <option>Broken</option><option>Expired</option>
+                <option>Water Damaged</option><option>Other</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Reported By *</label>
+              <input type="text" class="form-control form-control-dark" id="dmgReporter" placeholder="Staff name"/>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger-action" id="saveDmgBtn">Report Damage</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Staff Checkout Modal -->
+  <div class="modal fade" id="addStaffCheckoutModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content modal-dark">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fa-solid fa-user-plus"></i> Log Staff Checkout</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Staff Name *</label>
+              <input type="text" class="form-control form-control-dark" id="staffName" placeholder="Full name"/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Department *</label>
+              <select class="form-select form-control-dark" id="staffDept">
+                <option value="">Select Department</option>
+                <option>Kitchen</option><option>Housekeeping</option>
+                <option>Maintenance</option><option>Administration</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Item *</label>
+              <select class="form-select form-control-dark" id="staffItemSelect"></select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Quantity Taken *</label>
+              <input type="number" class="form-control form-control-dark" id="staffQtyTaken" min="1" placeholder="1"/>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary-action" id="saveStaffBtn">Log Checkout</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Item Modal -->
+  <div class="modal fade" id="viewItemModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content modal-dark">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fa-solid fa-eye"></i> Item Details</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="viewItemBody"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="appToast" class="toast align-items-center text-white border-0" role="alert">
+      <div class="d-flex">
+        <div class="toast-body" id="toastBody"></div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== SCRIPTS ====== -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+  
+  <!-- FoodFlow Application Scripts -->
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
 </html>
