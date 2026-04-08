@@ -1,4 +1,5 @@
 <%@ page import="java.sql.*" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <!DOCTYPE html>
 <html>
 <head>
@@ -37,78 +38,119 @@
             int itemCount = 0;
             if (rs.next()) {
                 itemCount = rs.getInt("count");
-                out.println("<div class='success'>");
-                out.println("<h2>✓ SUCCESS! Database is working!</h2>");
-                out.println("<p>Found <strong>" + itemCount + " items</strong> in the items table.</p>");
-                out.println("</div>");
+                request.setAttribute("itemCount", itemCount);
+                request.setAttribute("dbSuccess", true);
             }
             rs.close();
             
             // Show actual data
             if (itemCount > 0) {
-                out.println("<h3>Sample Data from items table:</h3>");
+                java.util.List<java.util.Map<String, Object>> items = new java.util.ArrayList<>();
                 rs = stmt.executeQuery("SELECT item_id, name, category, stock, unit_of_measure, status FROM items LIMIT 5");
-                out.println("<table>");
-                out.println("<tr><th>ID</th><th>Name</th><th>Category</th><th>Stock</th><th>Unit</th><th>Status</th></tr>");
                 while (rs.next()) {
-                    out.println("<tr>");
-                    out.println("<td>" + rs.getInt("item_id") + "</td>");
-                    out.println("<td>" + rs.getString("name") + "</td>");
-                    out.println("<td>" + rs.getString("category") + "</td>");
-                    out.println("<td>" + rs.getDouble("stock") + "</td>");
-                    out.println("<td>" + rs.getString("unit_of_measure") + "</td>");
-                    out.println("<td>" + rs.getString("status") + "</td>");
-                    out.println("</tr>");
+                    java.util.Map<String, Object> item = new java.util.HashMap<>();
+                    item.put("item_id", rs.getInt("item_id"));
+                    item.put("name", rs.getString("name"));
+                    item.put("category", rs.getString("category"));
+                    item.put("stock", rs.getDouble("stock"));
+                    item.put("unit_of_measure", rs.getString("unit_of_measure"));
+                    item.put("status", rs.getString("status"));
+                    items.add(item);
                 }
                 rs.close();
-                out.println("</table>");
-                
-                out.println("<div style='background:#fff;padding:10px;margin-top:20px;border-left:4px solid #27ae60;'>");
-                out.println("<h3>✅ Next Steps:</h3>");
-                out.println("<ol>");
-                out.println("<li>Go back to NetBeans</li>");
-                out.println("<li>Right-click FoodFlow project → Clean and Build</li>");
-                out.println("<li>Wait for BUILD SUCCESSFUL</li>");
-                out.println("<li>Right-click FoodFlow → Run</li>");
-                out.println("<li>The application should now work!</li>");
-                out.println("</ol>");
-                out.println("</div>");
+                request.setAttribute("sampleItems", items);
+                request.setAttribute("hasData", true);
             } else {
-                out.println("<div class='error'>");
-                out.println("<h2>⚠️ Database exists but has NO DATA!</h2>");
-                out.println("<p>The items table is empty.</p>");
-                out.println("<p><strong>Action needed:</strong> Run sample_data.sql to populate the database.</p>");
-                out.println("</div>");
+                request.setAttribute("hasData", false);
             }
             
             stmt.close();
             conn.close();
             
         } catch (ClassNotFoundException e) {
-            out.println("<div class='error'>");
-            out.println("<h2>✗ MySQL Driver Not Found!</h2>");
-            out.println("<pre>" + e.getMessage() + "</pre>");
-            out.println("<p><strong>Fix:</strong> Check pom.xml has mysql-connector-j dependency</p>");
-            out.println("</div>");
+            request.setAttribute("errorType", "driver");
+            request.setAttribute("errorMessage", e.getMessage());
         } catch (SQLException e) {
-            out.println("<div class='error'>");
-            out.println("<h2>✗ Cannot Connect to MySQL!</h2>");
-            out.println("<pre>" + e.getMessage() + "</pre>");
-            out.println("<p><strong>Common causes:</strong></p>");
-            out.println("<ul>");
-            out.println("<li>MySQL service is not running - Start it with: net start MySQL80</li>");
-            out.println("<li>Database 'foodflow' doesn't exist - Create it in MySQL Workbench</li>");
-            out.println("<li>Wrong password - Check DatabaseConfig.java has correct password</li>");
-            out.println("</ul>");
-            out.println("</div>");
+            request.setAttribute("errorType", "connection");
+            request.setAttribute("errorMessage", e.getMessage());
         } catch (Exception e) {
-            out.println("<div class='error'>");
-            out.println("<h2>✗ Unexpected Error</h2>");
-            out.println("<pre>" + e.getMessage() + "</pre>");
-            out.println("</div>");
+            request.setAttribute("errorType", "unexpected");
+            request.setAttribute("errorMessage", e.getMessage());
             e.printStackTrace();
         }
     %>
+    
+    <!-- EL-based rendering -->
+    <c:if test="${dbSuccess}">
+        <div class='success'>
+            <h2>✓ SUCCESS! Database is working!</h2>
+            <p>Found <strong>${itemCount} items</strong> in the items table.</p>
+        </div>
+        
+        <c:if test="${hasData}">
+            <h3>Sample Data from items table:</h3>
+            <table>
+                <tr><th>ID</th><th>Name</th><th>Category</th><th>Stock</th><th>Unit</th><th>Status</th></tr>
+                <c:forEach var="item" items="${sampleItems}">
+                    <tr>
+                        <td>${item.item_id}</td>
+                        <td>${item.name}</td>
+                        <td>${item.category}</td>
+                        <td>${item.stock}</td>
+                        <td>${item.unit_of_measure}</td>
+                        <td>${item.status}</td>
+                    </tr>
+                </c:forEach>
+            </table>
+            
+            <div style='background:#fff;padding:10px;margin-top:20px;border-left:4px solid #27ae60;'>
+                <h3>✅ Next Steps:</h3>
+                <ol>
+                    <li>Go back to NetBeans</li>
+                    <li>Right-click FoodFlow project → Clean and Build</li>
+                    <li>Wait for BUILD SUCCESSFUL</li>
+                    <li>Right-click FoodFlow → Run</li>
+                    <li>The application should now work!</li>
+                </ol>
+            </div>
+        </c:if>
+        
+        <c:if test="${!hasData}">
+            <div class='error'>
+                <h2>⚠️ Database exists but has NO DATA!</h2>
+                <p>The items table is empty.</p>
+                <p><strong>Action needed:</strong> Run sample_data.sql to populate the database.</p>
+            </div>
+        </c:if>
+    </c:if>
+    
+    <c:if test="${errorType eq 'driver'}">
+        <div class='error'>
+            <h2>✗ MySQL Driver Not Found!</h2>
+            <pre>${errorMessage}</pre>
+            <p><strong>Fix:</strong> Check pom.xml has mysql-connector-j dependency</p>
+        </div>
+    </c:if>
+    
+    <c:if test="${errorType eq 'connection'}">
+        <div class='error'>
+            <h2>✗ Cannot Connect to MySQL!</h2>
+            <pre>${errorMessage}</pre>
+            <p><strong>Common causes:</strong></p>
+            <ul>
+                <li>MySQL service is not running - Start it with: net start MySQL80</li>
+                <li>Database 'foodflow' doesn't exist - Create it in MySQL Workbench</li>
+                <li>Wrong password - Check DatabaseConfig.java has correct password</li>
+            </ul>
+        </div>
+    </c:if>
+    
+    <c:if test="${errorType eq 'unexpected'}">
+        <div class='error'>
+            <h2>✗ Unexpected Error</h2>
+            <pre>${errorMessage}</pre>
+        </div>
+    </c:if>
     
     <div style="margin-top:30px;padding:20px;background:#f8f9fa;border-radius:5px;">
         <h3>Debug Information:</h3>

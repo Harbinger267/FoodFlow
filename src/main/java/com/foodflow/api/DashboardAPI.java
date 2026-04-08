@@ -4,6 +4,7 @@ import com.foodflow.dao.DamageDAO;
 import com.foodflow.dao.ItemDAO;
 import com.foodflow.dao.StoreRequestDAO;
 import com.foodflow.model.Item;
+import com.foodflow.util.GsonUtil;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -24,7 +25,7 @@ public class DashboardAPI extends HttpServlet {
     private final ItemDAO itemDAO = new ItemDAO();
     private final DamageDAO damageDAO = new DamageDAO();
     private final StoreRequestDAO storeRequestDAO = new StoreRequestDAO();
-    private final Gson gson = new Gson();
+    private final Gson gson = GsonUtil.get();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)

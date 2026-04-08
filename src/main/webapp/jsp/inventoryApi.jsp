@@ -1,25 +1,5 @@
 <%@ page language="java" contentType="application/json; charset=UTF-8" pageEncoding="UTF-8" %>
-<%@ page import="java.util.*, java.text.SimpleDateFormat" %>
-<%--
-  ============================================================
-  InvenTrack Pro — Inventory API Endpoint (inventoryApi.jsp)
-  
-  Handles server-side CRUD for inventory data.
-  In production this would connect to a real database (MySQL/PostgreSQL).
-  
-  Endpoints:
-    GET  ?action=getItems         — fetch all items
-    GET  ?action=getDamaged       — fetch damaged records
-    GET  ?action=getStaff         — fetch staff checkouts
-    GET  ?action=getStats         — summary statistics
-    POST ?action=addItem          — add new item
-    POST ?action=reportDamage     — log damaged item
-    POST ?action=staffCheckout    — log staff checkout
-    POST ?action=markReturned&ref — mark item as returned
-    POST ?action=writeOff&ref     — write off damaged item
-    POST ?action=deleteItem&id    — delete item
-  ============================================================
---%>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%
   // ---- CORS / JSON Headers ----
   response.setHeader("Access-Control-Allow-Origin",  "*");
@@ -30,13 +10,18 @@
 
   String action = request.getParameter("action");
   if (action == null) action = "";
+  
+  // Set action as request attribute for EL access
+  request.setAttribute("action", action);
+  request.setAttribute("requestMethod", request.getMethod());
 
   // ---- In production: replace with DB calls ----
   // DataSource ds = (DataSource) ctx.lookup("java:comp/env/jdbc/inventrackDS");
   // Connection con = ds.getConnection();
 
-  SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-  String today = sdf.format(new Date());
+  java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+  String today = sdf.format(new java.util.Date());
+  request.setAttribute("today", today);
 
   StringBuilder json = new StringBuilder();
 

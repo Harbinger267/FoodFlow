@@ -1,4 +1,5 @@
 <%@ page import="java.sql.*" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -139,65 +140,104 @@
             }
             rs.close();
             
-            out.println("<h2>Database Statistics</h2>");
-            out.println("<div class='stat-grid'>");
-            out.println("<div class='stat-card'><h3>" + itemCount + "</h3><p>Items</p></div>");
-            out.println("<div class='stat-card'><h3>" + userCount + "</h3><p>Users</p></div>");
-            out.println("<div class='stat-card'><h3>" + damageCount + "</h3><p>Damages</p></div>");
-            out.println("<div class='stat-card'><h3>" + supplyCount + "</h3><p>Supplies</p></div>");
-            out.println("</div>");
+            // Set attributes for EL
+            request.setAttribute("itemCount", itemCount);
+            request.setAttribute("userCount", userCount);
+            request.setAttribute("damageCount", damageCount);
+            request.setAttribute("supplyCount", supplyCount);
+            request.setAttribute("totalCount", itemCount + userCount + damageCount + supplyCount);
+            request.setAttribute("dbSuccess", true);
             
             // Show sample data
-            out.println("<h2>Sample Items (First 5)</h2>");
+            java.util.List<java.util.Map<String, Object>> sampleItems = new java.util.ArrayList<>();
             rs = stmt.executeQuery("SELECT * FROM items LIMIT 5");
-            out.println("<table>");
-            out.println("<tr><th>ID</th><th>Name</th><th>Category</th><th>Stock</th><th>Status</th></tr>");
             while (rs.next()) {
-                out.println("<tr>");
-                out.println("<td>" + rs.getInt("item_id") + "</td>");
-                out.println("<td>" + rs.getString("name") + "</td>");
-                out.println("<td>" + rs.getString("category") + "</td>");
-                out.println("<td>" + rs.getDouble("stock") + " " + rs.getString("unit_of_measure") + "</td>");
-                out.println("<td>" + rs.getString("status") + "</td>");
-                out.println("</tr>");
+                java.util.Map<String, Object> item = new java.util.HashMap<>();
+                item.put("item_id", rs.getInt("item_id"));
+                item.put("name", rs.getString("name"));
+                item.put("category", rs.getString("category"));
+                item.put("stock", rs.getDouble("stock"));
+                item.put("unit_of_measure", rs.getString("unit_of_measure"));
+                item.put("status", rs.getString("status"));
+                sampleItems.add(item);
             }
             rs.close();
-            out.println("</table>");
-            
-            out.println("<div class='success'>");
-            out.println("<h2>✓ DATABASE CONNECTION SUCCESSFUL!</h2>");
-            out.println("<p>Your Java application can connect to MySQL and retrieve data.</p>");
-            out.println("<p>Total records in database: " + (itemCount + userCount + damageCount + supplyCount) + "</p>");
-            out.println("</div>");
+            request.setAttribute("sampleItems", sampleItems);
             
             stmt.close();
             conn.close();
             
         } catch (ClassNotFoundException e) {
-            out.println("<div class='error'>");
-            out.println("<h2>✗ DRIVER ERROR</h2>");
-            out.println("<p>MySQL JDBC Driver not found!</p>");
-            out.println("<pre>" + e.getMessage() + "</pre>");
-            out.println("</div>");
+            request.setAttribute("errorType", "driver");
+            request.setAttribute("errorMessage", e.getMessage());
         } catch (SQLException e) {
-            out.println("<div class='error'>");
-            out.println("<h2>✗ DATABASE CONNECTION FAILED</h2>");
-            out.println("<p>Cannot connect to MySQL server</p>");
-            out.println("<pre>" + e.getMessage() + "</pre>");
-            out.println("<p><strong>Common causes:</strong></p>");
-            out.println("<ul>");
-            out.println("<li>MySQL service is not running</li>");
-            out.println("<li>Database 'foodflow' doesn't exist</li>");
-            out.println("<li>Wrong username or password</li>");
-            out.println("</ul>");
-            out.println("</div>");
+            request.setAttribute("errorType", "connection");
+            request.setAttribute("errorMessage", e.getMessage());
         } catch (Exception e) {
-            out.println("<div class='error'>");
-            out.println("<h2>✗ UNEXPECTED ERROR</h2>");
-            out.println("<pre>" + e.getMessage() + "</pre>");
-            out.println("</div>");
+            request.setAttribute("errorType", "unexpected");
+            request.setAttribute("errorMessage", e.getMessage());
         }
     %>
+    
+    <!-- EL-based rendering -->
+    <c:if test="${dbSuccess}">
+        <h2>Database Statistics</h2>
+        <div class='stat-grid'>
+            <div class='stat-card'><h3>${itemCount}</h3><p>Items</p></div>
+            <div class='stat-card'><h3>${userCount}</h3><p>Users</p></div>
+            <div class='stat-card'><h3>${damageCount}</h3><p>Damages</p></div>
+            <div class='stat-card'><h3>${supplyCount}</h3><p>Supplies</p></div>
+        </div>
+        
+        <h2>Sample Items (First 5)</h2>
+        <table>
+            <tr><th>ID</th><th>Name</th><th>Category</th><th>Stock</th><th>Status</th></tr>
+            <c:forEach var="item" items="${sampleItems}">
+                <tr>
+                    <td>${item.item_id}</td>
+                    <td>${item.name}</td>
+                    <td>${item.category}</td>
+                    <td>${item.stock} ${item.unit_of_measure}</td>
+                    <td>${item.status}</td>
+                </tr>
+            </c:forEach>
+        </table>
+        
+        <div class='success'>
+            <h2>✓ DATABASE CONNECTION SUCCESSFUL!</h2>
+            <p>Your Java application can connect to MySQL and retrieve data.</p>
+            <p>Total records in database: ${totalCount}</p>
+        </div>
+    </c:if>
+    
+    <c:if test="${errorType eq 'driver'}">
+        <div class='error'>
+            <h2>✗ DRIVER ERROR</h2>
+            <p>MySQL JDBC Driver not found!</p>
+            <pre>${errorMessage}</pre>
+        </div>
+    </c:if>
+    
+    <c:if test="${errorType eq 'connection'}">
+        <div class='error'>
+            <h2>✗ DATABASE CONNECTION FAILED</h2>
+            <p>Cannot connect to MySQL server</p>
+            <pre>${errorMessage}</pre>
+            <p><strong>Common causes:</strong></p>
+            <ul>
+                <li>MySQL service is not running</li>
+                <li>Database 'foodflow' doesn't exist</li>
+                <li>Wrong username or password</li>
+            </ul>
+        </div>
+    </c:if>
+    
+    <c:if test="${errorType eq 'unexpected'}">
+        <div class='error'>
+            <h2>✗ UNEXPECTED ERROR</h2>
+            <pre>${errorMessage}</pre>
+        </div>
+    </c:if>
     
     <div class="info">
         <h2>Next Steps</h2>
