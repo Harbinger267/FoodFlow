@@ -8,6 +8,10 @@ function initCharts() {
  * Edit item (placeholder)
  */
 function editItem(itemId) {
+    if (!hasCapability('canUpdateInventory')) {
+        showToast('Access denied: only Store Keeper can edit inventory', 'danger');
+        return;
+    }
     showToast('Edit functionality coming soon', 'info');
 }
 

@@ -21,7 +21,7 @@ public class SecurityConfig {
     }
 
     public static boolean canManageInventory(User user) {
-        return isAdmin(user) || isStoreKeeper(user);
+        return isStoreKeeper(user);
     }
 
     public static boolean canManageUsers(User user) {
@@ -29,14 +29,14 @@ public class SecurityConfig {
     }
 
     public static boolean canApproveRequests(User user) {
-        return isAdmin(user) || isDepartmentHead(user);
+        return isDepartmentHead(user);
     }
 
     public static boolean canCreateRequests(User user) {
-        return isAdmin(user) || isStoreKeeper(user);
+        return isStoreKeeper(user);
     }
 
     public static boolean canRecordOperationalData(User user) {
-        return isAdmin(user) || isStoreKeeper(user);
+        return isStoreKeeper(user);
     }
 }

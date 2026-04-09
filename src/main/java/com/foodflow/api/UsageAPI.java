@@ -1,8 +1,10 @@
 package com.foodflow.api;
 
+import com.foodflow.config.SecurityConfig;
 import com.foodflow.dao.ItemDAO;
 import com.foodflow.dao.UsageDAO;
 import com.foodflow.model.Item;
+import com.foodflow.model.User;
 import com.foodflow.model.Usage;
 import com.foodflow.service.UsageService;
 import com.foodflow.util.GsonUtil;
@@ -14,6 +16,7 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.util.List;
@@ -28,7 +31,12 @@ public class UsageAPI extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
+
+        User currentUser = requireAuthenticatedUser(request, response);
+        if (currentUser == null) {
+            return;
+        }
+
         String action = request.getParameter("action");
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
@@ -58,7 +66,17 @@ public class UsageAPI extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
+
+        User currentUser = requireAuthenticatedUser(request, response);
+        if (currentUser == null) {
+            return;
+        }
+
+        if (!SecurityConfig.canRecordOperationalData(currentUser)) {
+            sendError(response, "Access denied: only Store Keeper can record issued items", 403);
+            return;
+        }
+
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
 
@@ -68,7 +86,6 @@ public class UsageAPI extends HttpServlet {
             if ("add".equals(action)) {
                 int itemId = Integer.parseInt(request.getParameter("itemId"));
                 int quantity = Integer.parseInt(request.getParameter("quantity"));
-                String staffName = request.getParameter("staffName");
                 String department = request.getParameter("department");
                 
                 Item item = itemDAO.getItemById(itemId);
@@ -82,7 +99,7 @@ public class UsageAPI extends HttpServlet {
                     return;
                 }
                 
-                boolean success = usageService.recordUsage(itemId, quantity, 1, 
+                boolean success = usageService.recordUsage(itemId, quantity, currentUser.getUserId(), 
                     department != null ? department : "Internal Department");
                 
                 JsonObject jsonResponse = new JsonObject();
@@ -110,5 +127,19 @@ public class UsageAPI extends HttpServlet {
         JsonObject error = new JsonObject();
         error.addProperty("error", message);
         response.getWriter().write(gson.toJson(error));
+    }
+
+    private User requireAuthenticatedUser(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            sendError(response, "Authentication required", 401);
+            return null;
+        }
+        Object userAttr = session.getAttribute("user");
+        if (!(userAttr instanceof User)) {
+            sendError(response, "Authentication required", 401);
+            return null;
+        }
+        return (User) userAttr;
     }
 }

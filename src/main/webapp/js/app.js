@@ -7,7 +7,10 @@
 let availableItems = [];
 let damageRecords = [];
 let usageRecords = [];
+let requestRecords = [];
 let dashboardStats = {};
+let rolePolicy = null;
+let latestActivityEntries = [];
 
 // DataTables instances
 let availableTable;
@@ -32,7 +35,10 @@ document.addEventListener('DOMContentLoaded', function() {
     initSidebar();
     initDateDisplay();
     initThemeToggle();
-    loadUserInfo();  // Load user info from session
+    const userContext = loadUserInfo();
+    rolePolicy = (userContext && userContext.policy) ? userContext.policy : getRolePolicy('STOREKEEPER');
+    applyRoleDashboardPolicy();
+    initRoleActionHandlers();
     loadAllData();
     initCharts();
     initModals();
@@ -64,6 +70,11 @@ async function loadAllData() {
         // Load usage records
         console.log('Loading usage records...');
         await loadUsageRecords();
+
+        if (hasCapability('canCreateRequests') || hasCapability('canApproveRequests')) {
+            console.log('Loading request records...');
+            await loadRequestRecords();
+        }
         
         showLoading(false);
         
@@ -107,12 +118,16 @@ async function loadDashboardData() {
         const stats = await FoodFlowAPI.dashboard.getStats();
         console.log('Dashboard stats:', stats);
         dashboardStats = stats;
+        applyRoleStatLabels(stats);
         
         // Update stat cards
         animateValue('totalItems', 0, stats.totalItems || 0, 1000);
         animateValue('inStockCount', 0, stats.inStock || 0, 1000);
         animateValue('damagedCount', 0, stats.damagedCount || 0, 1000);
-        animateValue('staffCheckouts', 0, stats.pendingRequests || 0, 1000);
+        const fourthMetric = hasCapability('canViewSystemLogs')
+            ? (stats.systemLogCount || 0)
+            : (stats.pendingRequests || 0);
+        animateValue('staffCheckouts', 0, fourthMetric, 1000);
         
         // Update low stock badge
         const lowStockData = await FoodFlowAPI.dashboard.getLowStock();
@@ -123,7 +138,10 @@ async function loadDashboardData() {
         
         // Load recent activity
         const activity = await FoodFlowAPI.dashboard.getRecentActivity();
-        populateRecentActivity(activity.items || []);
+        const mergedActivity = mergeRoleActivities(activity.items || []);
+        latestActivityEntries = mergedActivity;
+        populateRecentActivity(mergedActivity);
+        renderSystemLogTable(mergedActivity);
         
         // Update charts
         await updateCharts();
@@ -175,6 +193,24 @@ async function loadUsageRecords() {
     } catch (error) {
         console.error('Failed to load usage records:', error);
         throw error;
+    }
+}
+
+async function loadRequestRecords() {
+    try {
+        if (hasCapability('canApproveRequests')) {
+            requestRecords = await FoodFlowAPI.requests.getPending();
+        } else if (hasCapability('canCreateRequests')) {
+            requestRecords = await FoodFlowAPI.requests.getMine();
+        } else {
+            requestRecords = [];
+        }
+        renderRequestQueue();
+        populateRequestItemSelector();
+    } catch (error) {
+        console.error('Failed to load requests:', error);
+        requestRecords = [];
+        renderRequestQueue();
     }
 }
 
@@ -421,6 +457,9 @@ function initSidebar() {
     
     navItems.forEach(item => {
         item.addEventListener('click', function() {
+            if (this.classList.contains('role-hidden')) {
+                return;
+            }
             navItems.forEach(n => n.classList.remove('active'));
             this.classList.add('active');
             
@@ -434,6 +473,14 @@ function initSidebar() {
  * Show specific page
  */
 function showPage(pageName) {
+    if (!isPageAllowed(pageName)) {
+        const fallbackPage = getDefaultAllowedPage();
+        if (fallbackPage !== pageName) {
+            showPage(fallbackPage);
+        }
+        return;
+    }
+
     const pages = document.querySelectorAll('.page');
     const pageTitle = document.getElementById('pageTitle');
     const bcActive = document.getElementById('bcActive');
@@ -447,11 +494,15 @@ function showPage(pageName) {
         // Update page title
         const titles = {
             'dashboard': 'Dashboard',
-            'available': 'Available Stock',
+            'requests': 'Store Requests',
+            'available': 'Inventory',
             'damaged': 'Damaged Items',
             'perishable': 'Perishable Goods',
             'nonperishable': 'Non-Perishable Goods',
-            'staffrecords': 'Staff Records',
+            'staffrecords': 'Issued Items',
+            'adminusers': 'Manage Users',
+            'adminops': 'System Operations',
+            'logs': 'Activity Logs',
             'reports': 'Reports'
         };
         
@@ -502,6 +553,16 @@ function initThemeToggle() {
  */
 function initGlobalSearch() {
     const searchInput = document.getElementById('globalSearch');
+
+    if (!searchInput) {
+        return;
+    }
+
+    if (!hasCapability('canSearchItems')) {
+        searchInput.disabled = true;
+        searchInput.placeholder = 'Search disabled for this role';
+        return;
+    }
     
     searchInput.addEventListener('input', function() {
         const query = this.value;
@@ -522,3 +583,332 @@ function initGlobalSearch() {
 /**
  * Helper: Get status badge HTML
  */
+function applyRoleDashboardPolicy() {
+    const allowedPages = rolePolicy && rolePolicy.allowedPages
+        ? rolePolicy.allowedPages
+        : ['dashboard'];
+
+    // Sidebar nav visibility
+    document.querySelectorAll('.nav-item').forEach((navItem) => {
+        const page = navItem.dataset.page;
+        const isAllowed = allowedPages.includes(page);
+        navItem.classList.toggle('role-hidden', !isAllowed);
+        navItem.style.display = isAllowed ? '' : 'none';
+        if (!isAllowed) {
+            navItem.classList.remove('active');
+        }
+    });
+
+    // Section visibility
+    document.querySelectorAll('.page').forEach((page) => {
+        const pageName = page.id.replace('page-', '');
+        const isAllowed = allowedPages.includes(pageName);
+        page.style.display = isAllowed ? '' : 'none';
+        if (!isAllowed) {
+            page.classList.remove('active');
+        }
+    });
+
+    // Hide section labels that no longer have visible items after them
+    document.querySelectorAll('.nav-menu .nav-section-label').forEach((label) => {
+        let hasVisibleItem = false;
+        let current = label.nextElementSibling;
+        while (current && !current.classList.contains('nav-section-label')) {
+            if (current.classList.contains('nav-item') && current.style.display !== 'none') {
+                hasVisibleItem = true;
+                break;
+            }
+            current = current.nextElementSibling;
+        }
+        label.style.display = hasVisibleItem ? '' : 'none';
+    });
+
+    // Modal launch buttons
+    const addItemBtn = document.getElementById('openAddItemModalBtn');
+    const addDamageBtn = document.getElementById('openAddDamagedModalBtn');
+    const addUsageBtn = document.getElementById('openAddStaffCheckoutModalBtn');
+    if (addItemBtn) addItemBtn.style.display = hasCapability('canUpdateInventory') ? '' : 'none';
+    if (addDamageBtn) addDamageBtn.style.display = hasCapability('canRecordDamages') ? '' : 'none';
+    if (addUsageBtn) addUsageBtn.style.display = hasCapability('canRecordIssuedItems') ? '' : 'none';
+
+    const requestCreateCard = document.getElementById('requestCreateCard');
+    const requestQueueCard = document.getElementById('requestQueueCard');
+    if (requestCreateCard) {
+        requestCreateCard.style.display = hasCapability('canCreateRequests') ? '' : 'none';
+    }
+    if (requestQueueCard) {
+        requestQueueCard.className = hasCapability('canCreateRequests') ? 'col-xl-7' : 'col-xl-12';
+    }
+
+    const adminUsersPage = document.getElementById('page-adminusers');
+    const adminOpsPage = document.getElementById('page-adminops');
+    const logsPage = document.getElementById('page-logs');
+    if (adminUsersPage) adminUsersPage.style.display = hasCapability('canManageUsers') ? '' : 'none';
+    if (adminOpsPage) adminOpsPage.style.display = hasCapability('canSystemMaintenance') ? '' : 'none';
+    if (logsPage) logsPage.style.display = hasCapability('canViewSystemLogs') ? '' : 'none';
+
+    // Reports nav/page hard guard
+    const reportsNav = document.querySelector('.nav-item[data-page="reports"]');
+    const reportsPage = document.getElementById('page-reports');
+    if (!hasCapability('canViewReports')) {
+        if (reportsNav) reportsNav.style.display = 'none';
+        if (reportsPage) reportsPage.style.display = 'none';
+    }
+
+    // Set active page to role default
+    const defaultPage = getDefaultAllowedPage();
+    const defaultNav = document.querySelector(`.nav-item[data-page="${defaultPage}"]`);
+    if (defaultNav) {
+        document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+        defaultNav.classList.add('active');
+    }
+    showPage(defaultPage);
+}
+
+function applyRoleStatLabels(stats) {
+    const labels = (rolePolicy && rolePolicy.statLabels) || {};
+    const totalLabel = document.getElementById('statLabelTotal');
+    const inStockLabel = document.getElementById('statLabelInStock');
+    const damagedLabel = document.getElementById('statLabelDamaged');
+    const fourthLabel = document.getElementById('statLabelFourth');
+
+    if (totalLabel) totalLabel.textContent = labels.total || 'Total Items';
+    if (inStockLabel) inStockLabel.textContent = labels.inStock || 'In Stock';
+    if (damagedLabel) damagedLabel.textContent = labels.damaged || 'Damaged Items';
+    if (fourthLabel) {
+        if (hasCapability('canViewSystemLogs')) {
+            fourthLabel.textContent = labels.fourth || 'System Logs';
+        } else if (hasCapability('canApproveRequests')) {
+            fourthLabel.textContent = labels.fourth || 'Pending Approvals';
+        } else {
+            fourthLabel.textContent = labels.fourth || 'Pending Requests';
+        }
+    }
+}
+
+function mergeRoleActivities(serverActivities) {
+    const activities = serverActivities || [];
+    const hasServerRoleTasks = activities.some((act) =>
+        typeof act.description === 'string' && act.description.startsWith('[Role Task]')
+    );
+    const roleActivities = hasServerRoleTasks ? [] : getRoleTaskActivityEntries();
+    const merged = roleActivities.concat(activities);
+    return merged.slice(0, 12);
+}
+
+function getRoleTaskActivityEntries() {
+    const entries = [];
+    const tasks = getRoleActivityLog();
+    const nowIso = new Date().toISOString();
+    tasks.forEach((task) => {
+        entries.push({
+            type: 'role',
+            description: `[Role Task] ${task}`,
+            quantity: 0,
+            date: nowIso
+        });
+    });
+    return entries;
+}
+
+function getDefaultAllowedPage() {
+    if (rolePolicy && rolePolicy.defaultPage && isPageAllowed(rolePolicy.defaultPage)) {
+        return rolePolicy.defaultPage;
+    }
+    const allowed = rolePolicy && rolePolicy.allowedPages;
+    if (allowed && allowed.length > 0) {
+        return allowed[0];
+    }
+    return 'dashboard';
+}
+
+function isPageAllowed(pageName) {
+    const allowed = rolePolicy && rolePolicy.allowedPages;
+    if (!allowed || allowed.length === 0) {
+        return pageName === 'dashboard';
+    }
+    return allowed.includes(pageName);
+}
+
+function initRoleActionHandlers() {
+    const submitRequestBtn = document.getElementById('submitRequestBtn');
+    if (submitRequestBtn) {
+        submitRequestBtn.addEventListener('click', submitStoreRequest);
+    }
+
+    const requestTableBody = document.getElementById('requestTableBody');
+    if (requestTableBody) {
+        requestTableBody.addEventListener('click', async (event) => {
+            const approveBtn = event.target.closest('[data-request-approve]');
+            const rejectBtn = event.target.closest('[data-request-reject]');
+            if (approveBtn) {
+                await decideStoreRequest(parseInt(approveBtn.dataset.requestApprove, 10), 'approve');
+            }
+            if (rejectBtn) {
+                await decideStoreRequest(parseInt(rejectBtn.dataset.requestReject, 10), 'reject');
+            }
+        });
+    }
+
+    bindAdminAction('adminAddUserBtn', 'User management flow: Add User');
+    bindAdminAction('adminUpdateUserBtn', 'User management flow: Update User');
+    bindAdminAction('adminDeleteUserBtn', 'User management flow: Delete User');
+    bindAdminAction('adminBackupBtn', 'Database backup queued');
+    bindAdminAction('adminRestoreBtn', 'Database restore queued');
+    bindAdminAction('adminMaintenanceBtn', 'System maintenance queued');
+}
+
+function bindAdminAction(elementId, message) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.addEventListener('click', () => {
+        if (!hasCapability('canManageUsers') && !hasCapability('canSystemMaintenance')) {
+            showToast('Access denied: admin only action', 'danger');
+            return;
+        }
+        showToast(message, 'info');
+    });
+}
+
+async function submitStoreRequest() {
+    if (!hasCapability('canCreateRequests')) {
+        showToast('Access denied: only Store Keeper can create requests', 'danger');
+        return;
+    }
+
+    const itemId = parseInt((document.getElementById('requestItemSelect') || {}).value, 10);
+    const quantity = parseFloat((document.getElementById('requestQty') || {}).value);
+    const notes = ((document.getElementById('requestNotes') || {}).value || '').trim();
+
+    if (!itemId || !quantity || quantity <= 0) {
+        showToast('Select item and quantity before submitting', 'warning');
+        return;
+    }
+
+    try {
+        const result = await FoodFlowAPI.requests.create({ itemId, quantity, notes });
+        if (result && result.success) {
+            showToast('Store request submitted', 'success');
+            document.getElementById('requestQty').value = '';
+            document.getElementById('requestNotes').value = '';
+            await loadRequestRecords();
+            await loadDashboardData();
+        } else {
+            showToast((result && result.message) || 'Failed to submit request', 'danger');
+        }
+    } catch (error) {
+        console.error('Request submit failed:', error);
+        showToast('Error submitting request: ' + error.message, 'danger');
+    }
+}
+
+async function decideStoreRequest(requestId, action) {
+    if (!hasCapability('canApproveRequests')) {
+        showToast('Access denied: only Department Head can approve/reject', 'danger');
+        return;
+    }
+    if (!requestId || Number.isNaN(requestId)) {
+        showToast('Invalid request selected', 'warning');
+        return;
+    }
+
+    try {
+        const result = action === 'approve'
+            ? await FoodFlowAPI.requests.approve(requestId)
+            : await FoodFlowAPI.requests.reject(requestId);
+        if (result && result.success) {
+            showToast(action === 'approve' ? 'Request approved' : 'Request rejected', 'success');
+            await loadRequestRecords();
+            await loadDashboardData();
+        } else {
+            showToast((result && result.message) || 'Could not update request', 'danger');
+        }
+    } catch (error) {
+        console.error('Request decision failed:', error);
+        showToast('Error updating request: ' + error.message, 'danger');
+    }
+}
+
+function populateRequestItemSelector() {
+    const selector = document.getElementById('requestItemSelect');
+    if (!selector) return;
+
+    if (!hasCapability('canCreateRequests')) {
+        selector.innerHTML = '<option value="">Not available for this role</option>';
+        selector.disabled = true;
+        return;
+    }
+
+    selector.disabled = false;
+    const options = ['<option value="">Select Item</option>'];
+    availableItems.forEach((item) => {
+        options.push(`<option value="${item.itemId}">${escapeHtml(item.name)} (Stock: ${item.currentStock})</option>`);
+    });
+    selector.innerHTML = options.join('');
+}
+
+function renderRequestQueue() {
+    const body = document.getElementById('requestTableBody');
+    if (!body) return;
+    if (!requestRecords || requestRecords.length === 0) {
+        body.innerHTML = '<tr><td colspan="6" class="text-muted">No requests found</td></tr>';
+        return;
+    }
+
+    const canApprove = hasCapability('canApproveRequests');
+    const rows = requestRecords.map((request) => {
+        const status = (request.status || 'PENDING').toUpperCase();
+        let actionHtml = '<span class="text-muted">View</span>';
+        if (canApprove && status === 'PENDING') {
+            actionHtml = `
+                <button class="btn-action-sm" data-request-approve="${request.requestId}" title="Approve">
+                  <i class="fa-solid fa-check"></i>
+                </button>
+                <button class="btn-action-sm" data-request-reject="${request.requestId}" title="Reject">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+            `;
+        }
+        return `
+            <tr>
+              <td>${request.requestId}</td>
+              <td>${escapeHtml(request.requesterName || 'Store Keeper')}</td>
+              <td>${escapeHtml(request.itemName || 'Item')}</td>
+              <td>${request.quantityRequested || 0}</td>
+              <td>${getStatusBadge(status)}</td>
+              <td>${actionHtml}</td>
+            </tr>
+        `;
+    });
+    body.innerHTML = rows.join('');
+}
+
+function renderSystemLogTable(activities) {
+    const tableBody = document.getElementById('systemLogsTableBody');
+    if (!tableBody) return;
+    const rows = (activities || []).map((entry) => {
+        const rawDate = entry.date ? new Date(entry.date) : null;
+        const dateText = rawDate && !Number.isNaN(rawDate.getTime()) ? rawDate.toLocaleString() : 'Recent';
+        return `
+            <tr>
+              <td>${escapeHtml((entry.type || 'activity').toUpperCase())}</td>
+              <td>${escapeHtml(entry.description || 'Activity recorded')}</td>
+              <td>${entry.quantity || 0}</td>
+              <td>${escapeHtml(dateText)}</td>
+            </tr>
+        `;
+    });
+    tableBody.innerHTML = rows.length > 0
+        ? rows.join('')
+        : '<tr><td colspan="4" class="text-muted">No activity logs</td></tr>';
+}
+
+function escapeHtml(value) {
+    const text = String(value == null ? '' : value);
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}

@@ -13,7 +13,8 @@ const ENDPOINTS = {
     ITEMS: `${CONTEXT_ROOT}/api/items`,
     DAMAGE: `${CONTEXT_ROOT}/api/damage`,
     USAGE: `${CONTEXT_ROOT}/api/usage`,
-    DASHBOARD: `${CONTEXT_ROOT}/api/dashboard`
+    DASHBOARD: `${CONTEXT_ROOT}/api/dashboard`,
+    REQUESTS: `${CONTEXT_ROOT}/api/requests`
 };
 
 /**
@@ -258,11 +259,68 @@ const DashboardAPI = {
     }
 };
 
+/**
+ * Requests API
+ */
+const RequestsAPI = {
+    getMine() {
+        return fetchAPI(`${ENDPOINTS.REQUESTS}?action=mine`);
+    },
+
+    getPending() {
+        return fetchAPI(`${ENDPOINTS.REQUESTS}?action=pending`);
+    },
+
+    getAll() {
+        return fetchAPI(ENDPOINTS.REQUESTS);
+    },
+
+    async create(requestData) {
+        const params = new URLSearchParams();
+        params.append('action', 'create');
+        params.append('itemId', requestData.itemId);
+        params.append('quantity', requestData.quantity);
+        params.append('notes', requestData.notes || '');
+
+        const response = await fetch(ENDPOINTS.REQUESTS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params
+        });
+        return await response.json();
+    },
+
+    async approve(requestId) {
+        const params = new URLSearchParams();
+        params.append('action', 'approve');
+        params.append('requestId', requestId);
+        const response = await fetch(ENDPOINTS.REQUESTS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params
+        });
+        return await response.json();
+    },
+
+    async reject(requestId) {
+        const params = new URLSearchParams();
+        params.append('action', 'reject');
+        params.append('requestId', requestId);
+        const response = await fetch(ENDPOINTS.REQUESTS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params
+        });
+        return await response.json();
+    }
+};
+
 // Export all APIs
 window.FoodFlowAPI = {
     items: ItemsAPI,
     damage: DamageAPI,
     usage: UsageAPI,
     dashboard: DashboardAPI,
+    requests: RequestsAPI,
     fetchAPI
 };

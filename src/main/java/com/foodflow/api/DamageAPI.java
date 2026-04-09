@@ -1,9 +1,11 @@
 package com.foodflow.api;
 
+import com.foodflow.config.SecurityConfig;
 import com.foodflow.dao.DamageDAO;
 import com.foodflow.dao.ItemDAO;
 import com.foodflow.model.Damage;
 import com.foodflow.model.Item;
+import com.foodflow.model.User;
 import com.foodflow.util.GsonUtil;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -14,6 +16,7 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.util.List;
@@ -27,7 +30,12 @@ public class DamageAPI extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
+
+        User currentUser = requireAuthenticatedUser(request, response);
+        if (currentUser == null) {
+            return;
+        }
+
         String action = request.getParameter("action");
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
@@ -61,7 +69,17 @@ public class DamageAPI extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
+
+        User currentUser = requireAuthenticatedUser(request, response);
+        if (currentUser == null) {
+            return;
+        }
+
+        if (!SecurityConfig.canRecordOperationalData(currentUser)) {
+            sendError(response, "Access denied: only Store Keeper can record damages", 403);
+            return;
+        }
+
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
 
@@ -72,7 +90,6 @@ public class DamageAPI extends HttpServlet {
                 int itemId = Integer.parseInt(request.getParameter("itemId"));
                 int quantity = Integer.parseInt(request.getParameter("quantity"));
                 String damageType = request.getParameter("damageType");
-                String reportedBy = request.getParameter("reportedBy");
                 
                 Item item = itemDAO.getItemById(itemId);
                 if (item == null) {
@@ -81,7 +98,7 @@ public class DamageAPI extends HttpServlet {
                 }
                 
                 boolean success = damageDAO.recordDamage(itemId, quantity, 
-                    damageType != null ? damageType : "Other", 1);
+                    damageType != null ? damageType : "Other", currentUser.getUserId());
                 
                 JsonObject jsonResponse = new JsonObject();
                 jsonResponse.addProperty("success", success);
@@ -108,5 +125,19 @@ public class DamageAPI extends HttpServlet {
         JsonObject error = new JsonObject();
         error.addProperty("error", message);
         response.getWriter().write(gson.toJson(error));
+    }
+
+    private User requireAuthenticatedUser(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            sendError(response, "Authentication required", 401);
+            return null;
+        }
+        Object userAttr = session.getAttribute("user");
+        if (!(userAttr instanceof User)) {
+            sendError(response, "Authentication required", 401);
+            return null;
+        }
+        return (User) userAttr;
     }
 }

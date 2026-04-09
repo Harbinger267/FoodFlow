@@ -43,23 +43,30 @@
       <li class="nav-item active" data-page="dashboard">
         <a href="#"><i class="fa-solid fa-gauge-high"></i><span>Dashboard</span></a>
       </li>
+      <li class="nav-item" data-page="requests">
+        <a href="#"><i class="fa-solid fa-file-signature"></i><span>Store Requests</span></a>
+      </li>
+      <li class="nav-section-label">OPERATIONS</li>
       <li class="nav-item" data-page="available">
-        <a href="#"><i class="fa-solid fa-boxes-stacked"></i><span>Available Stock</span></a>
+        <a href="#"><i class="fa-solid fa-boxes-stacked"></i><span>Inventory</span></a>
       </li>
       <li class="nav-item" data-page="damaged">
         <a href="#"><i class="fa-solid fa-triangle-exclamation"></i><span>Damaged Items</span></a>
       </li>
-      <li class="nav-section-label">CATEGORIES</li>
-      <li class="nav-item" data-page="perishable">
-        <a href="#"><i class="fa-solid fa-apple-whole"></i><span>Perishable Goods</span></a>
-      </li>
-      <li class="nav-item" data-page="nonperishable">
-        <a href="#"><i class="fa-solid fa-box-archive"></i><span>Non-Perishable Goods</span></a>
-      </li>
-      <li class="nav-section-label">RECORDS</li>
       <li class="nav-item" data-page="staffrecords">
-        <a href="#"><i class="fa-solid fa-users"></i><span>Staff Records</span></a>
+        <a href="#"><i class="fa-solid fa-users"></i><span>Issued Items</span></a>
       </li>
+      <li class="nav-section-label">ADMIN</li>
+      <li class="nav-item" data-page="adminusers">
+        <a href="#"><i class="fa-solid fa-user-gear"></i><span>Manage Users</span></a>
+      </li>
+      <li class="nav-item" data-page="adminops">
+        <a href="#"><i class="fa-solid fa-screwdriver-wrench"></i><span>System Ops</span></a>
+      </li>
+      <li class="nav-item" data-page="logs">
+        <a href="#"><i class="fa-solid fa-clipboard-list"></i><span>System Logs</span></a>
+      </li>
+      <li class="nav-section-label">REPORTS</li>
       <li class="nav-item" data-page="reports">
         <a href="#"><i class="fa-solid fa-chart-bar"></i><span>Reports</span></a>
       </li>
@@ -123,7 +130,7 @@
             <div class="stat-card shake-card" data-color="blue">
               <div class="stat-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
               <div class="stat-info">
-                <span class="stat-label">Total Items</span>
+                <span class="stat-label" id="statLabelTotal">Total Items</span>
                 <span class="stat-value" id="totalItems">0</span>
               </div>
               <div class="stat-bg-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
@@ -133,7 +140,7 @@
             <div class="stat-card shake-card" data-color="green">
               <div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div>
               <div class="stat-info">
-                <span class="stat-label">In Stock</span>
+                <span class="stat-label" id="statLabelInStock">In Stock</span>
                 <span class="stat-value" id="inStockCount">0</span>
               </div>
               <div class="stat-bg-icon"><i class="fa-solid fa-circle-check"></i></div>
@@ -143,7 +150,7 @@
             <div class="stat-card shake-card" data-color="red">
               <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
               <div class="stat-info">
-                <span class="stat-label">Damaged Items</span>
+                <span class="stat-label" id="statLabelDamaged">Damaged Items</span>
                 <span class="stat-value" id="damagedCount">0</span>
               </div>
               <div class="stat-bg-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
@@ -153,7 +160,7 @@
             <div class="stat-card shake-card" data-color="amber">
               <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
               <div class="stat-info">
-                <span class="stat-label">Staff Checkouts</span>
+                <span class="stat-label" id="statLabelFourth">Staff Checkouts</span>
                 <span class="stat-value" id="staffCheckouts">0</span>
               </div>
               <div class="stat-bg-icon"><i class="fa-solid fa-users"></i></div>
@@ -204,10 +211,59 @@
 
       </section>
 
+      <!-- ========== STORE REQUESTS PAGE ========== -->
+      <section class="page" id="page-requests">
+        <div class="row g-4 mb-4">
+          <div class="col-xl-5" id="requestCreateCard">
+            <div class="card-panel shake-card">
+              <div class="panel-header">
+                <h5><i class="fa-solid fa-plus"></i> Create Store Request</h5>
+              </div>
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label">Item</label>
+                  <select id="requestItemSelect" class="form-select form-control-dark"></select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Quantity</label>
+                  <input type="number" id="requestQty" class="form-control form-control-dark" min="1" placeholder="1"/>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Notes</label>
+                  <input type="text" id="requestNotes" class="form-control form-control-dark" placeholder="Reason for request"/>
+                </div>
+                <div class="col-12">
+                  <button class="btn-primary-action" id="submitRequestBtn">
+                    <i class="fa-solid fa-paper-plane"></i> Submit Request
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-xl-7" id="requestQueueCard">
+            <div class="card-panel shake-card">
+              <div class="panel-header">
+                <h5><i class="fa-solid fa-list-check"></i> Request Queue</h5>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-dark-custom" style="width:100%">
+                  <thead>
+                    <tr>
+                      <th>ID</th><th>Requester</th><th>Item</th><th>Qty</th><th>Status</th><th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="requestTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- ========== AVAILABLE STOCK PAGE ========== -->
       <section class="page" id="page-available">
         <div class="page-toolbar mb-4">
-          <button class="btn-primary-action" data-bs-toggle="modal" data-bs-target="#addItemModal">
+          <button class="btn-primary-action" id="openAddItemModalBtn" data-bs-toggle="modal" data-bs-target="#addItemModal">
             <i class="fa-solid fa-plus"></i> Add Item
           </button>
         </div>
@@ -232,7 +288,7 @@
       <!-- ========== DAMAGED ITEMS PAGE ========== -->
       <section class="page" id="page-damaged">
         <div class="page-toolbar mb-4">
-          <button class="btn-primary-action btn-danger-action" data-bs-toggle="modal" data-bs-target="#addDamagedModal">
+          <button class="btn-primary-action btn-danger-action" id="openAddDamagedModalBtn" data-bs-toggle="modal" data-bs-target="#addDamagedModal">
             <i class="fa-solid fa-plus"></i> Report Damage
           </button>
         </div>
@@ -297,7 +353,7 @@
       <!-- ========== STAFF RECORDS PAGE ========== -->
       <section class="page" id="page-staffrecords">
         <div class="page-toolbar mb-4">
-          <button class="btn-primary-action" data-bs-toggle="modal" data-bs-target="#addStaffCheckoutModal">
+          <button class="btn-primary-action" id="openAddStaffCheckoutModalBtn" data-bs-toggle="modal" data-bs-target="#addStaffCheckoutModal">
             <i class="fa-solid fa-plus"></i> Log Staff Checkout
           </button>
         </div>
@@ -314,6 +370,91 @@
                 </tr>
               </thead>
               <tbody id="staffTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== ADMIN USERS PAGE ========== -->
+      <section class="page" id="page-adminusers">
+        <div class="row g-4">
+          <div class="col-xl-4">
+            <div class="card-panel shake-card">
+              <div class="panel-header">
+                <h5><i class="fa-solid fa-user-plus"></i> Add User</h5>
+              </div>
+              <p class="text-muted">Provision a new system user and assign role access.</p>
+              <button class="btn-primary-action" id="adminAddUserBtn"><i class="fa-solid fa-plus"></i> Add User</button>
+            </div>
+          </div>
+          <div class="col-xl-4">
+            <div class="card-panel shake-card">
+              <div class="panel-header">
+                <h5><i class="fa-solid fa-user-pen"></i> Update User</h5>
+              </div>
+              <p class="text-muted">Modify role, status, or identity details of existing users.</p>
+              <button class="btn-primary-action" id="adminUpdateUserBtn"><i class="fa-solid fa-pen"></i> Update User</button>
+            </div>
+          </div>
+          <div class="col-xl-4">
+            <div class="card-panel shake-card">
+              <div class="panel-header">
+                <h5><i class="fa-solid fa-user-xmark"></i> Delete User</h5>
+              </div>
+              <p class="text-muted">Deactivate or remove user access from the platform.</p>
+              <button class="btn-danger-action" id="adminDeleteUserBtn"><i class="fa-solid fa-trash"></i> Delete User</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== ADMIN SYSTEM OPS PAGE ========== -->
+      <section class="page" id="page-adminops">
+        <div class="row g-4">
+          <div class="col-xl-4">
+            <div class="card-panel shake-card">
+              <div class="panel-header">
+                <h5><i class="fa-solid fa-database"></i> Backup Database</h5>
+              </div>
+              <p class="text-muted">Create backup snapshot for recovery and audit use.</p>
+              <button class="btn-primary-action" id="adminBackupBtn"><i class="fa-solid fa-download"></i> Backup</button>
+            </div>
+          </div>
+          <div class="col-xl-4">
+            <div class="card-panel shake-card">
+              <div class="panel-header">
+                <h5><i class="fa-solid fa-rotate-left"></i> Restore Database</h5>
+              </div>
+              <p class="text-muted">Restore system data from an authorized backup source.</p>
+              <button class="btn-primary-action" id="adminRestoreBtn"><i class="fa-solid fa-upload"></i> Restore</button>
+            </div>
+          </div>
+          <div class="col-xl-4">
+            <div class="card-panel shake-card">
+              <div class="panel-header">
+                <h5><i class="fa-solid fa-gears"></i> System Maintenance</h5>
+              </div>
+              <p class="text-muted">Run maintenance and stability checks for system health.</p>
+              <button class="btn-primary-action" id="adminMaintenanceBtn"><i class="fa-solid fa-screwdriver-wrench"></i> Run Maintenance</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SYSTEM LOGS PAGE ========== -->
+      <section class="page" id="page-logs">
+        <div class="card-panel shake-card">
+          <div class="panel-header">
+            <h5><i class="fa-solid fa-clipboard-list"></i> Activity Log</h5>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-dark-custom" style="width:100%">
+              <thead>
+                <tr>
+                  <th>Type</th><th>Description</th><th>Quantity</th><th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="systemLogsTableBody"></tbody>
             </table>
           </div>
         </div>

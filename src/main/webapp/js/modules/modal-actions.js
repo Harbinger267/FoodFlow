@@ -24,6 +24,11 @@ function initModals() {
  * Save new item
  */
 async function saveNewItem() {
+    if (!hasCapability('canUpdateInventory')) {
+        showToast('Access denied: only Store Keeper can update inventory', 'danger');
+        return;
+    }
+
     const itemName = document.getElementById('itemName').value;
     const category = document.getElementById('itemCategory').value;
     const quantity = document.getElementById('itemQty').value;
@@ -80,6 +85,11 @@ async function saveNewItem() {
  * Save damage report
  */
 async function saveDamageReport() {
+    if (!hasCapability('canRecordDamages')) {
+        showToast('Access denied: only Store Keeper can record damages', 'danger');
+        return;
+    }
+
     const itemId = document.getElementById('dmgItemName').value;
     const quantity = document.getElementById('dmgQty').value;
     const damageType = document.getElementById('dmgType').value;
@@ -132,6 +142,11 @@ async function saveDamageReport() {
  * Save staff checkout
  */
 async function saveStaffCheckout() {
+    if (!hasCapability('canRecordIssuedItems')) {
+        showToast('Access denied: only Store Keeper can record issued items', 'danger');
+        return;
+    }
+
     const usageData = {
         itemId: parseInt(document.getElementById('staffItemSelect').value),
         quantity: parseInt(document.getElementById('staffQtyTaken').value),
@@ -163,6 +178,10 @@ async function saveStaffCheckout() {
  * Populate item dropdowns in modals
  */
 async function populateItemDropdowns() {
+    if (!hasCapability('canViewInventory')) {
+        return;
+    }
+
     try {
         const items = await FoodFlowAPI.items.getAll();
         

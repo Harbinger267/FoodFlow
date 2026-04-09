@@ -34,8 +34,18 @@ function populateRecentActivity(activities) {
     }
     
     activities.forEach(act => {
-        const icon = act.type === 'damage' ? 'damage' : 'add';
-        const iconClass = icon === 'damage' ? 'fa-triangle-exclamation' : 'fa-circle-check';
+        const type = act.type || 'add';
+        const icon = type === 'damage' ? 'damage' : (type === 'role' ? 'info' : 'add');
+        const iconClass = icon === 'damage'
+            ? 'fa-triangle-exclamation'
+            : (icon === 'info' ? 'fa-list-check' : 'fa-circle-check');
+        const quantityLine = Number(act.quantity || 0) > 0
+            ? `<small class="text-muted">Qty: ${act.quantity}</small>`
+            : `<small class="text-muted">${type === 'role' ? 'Role workflow' : 'Activity entry'}</small>`;
+        const parsedDate = act.date ? new Date(act.date) : null;
+        const dateText = parsedDate && !Number.isNaN(parsedDate.getTime())
+            ? parsedDate.toLocaleDateString()
+            : 'Recent';
         const activityItem = `
             <div class="activity-item">
                 <div class="activity-icon ${icon}">
@@ -43,9 +53,9 @@ function populateRecentActivity(activities) {
                 </div>
                 <div class="activity-text">
                     ${act.description || 'Activity recorded'}<br>
-                    <small class="text-muted">Qty: ${act.quantity || 0}</small>
+                    ${quantityLine}
                 </div>
-                <span class="activity-time">${act.date ? new Date(act.date).toLocaleDateString() : 'Recent'}</span>
+                <span class="activity-time">${dateText}</span>
             </div>
         `;
         container.innerHTML += activityItem;

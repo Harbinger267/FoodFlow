@@ -89,6 +89,20 @@ public class StoreRequestDAO {
         return 0;
     }
 
+    public int countPendingRequestsForRequester(int requesterId) {
+        String sql = "SELECT COUNT(*) FROM store_requests WHERE status = 'PENDING' AND requester_id = ?";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, requesterId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
     private List<StoreRequest> getRequests(String status, boolean filterByRequester, int... requesterId) {
         StringBuilder sql = new StringBuilder(
                 "SELECT sr.request_id, sr.requester_id, req.name AS requester_name, sr.approver_id, app.name AS approver_name, " +

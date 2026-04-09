@@ -1,7 +1,9 @@
 package com.foodflow.api;
 
+import com.foodflow.config.SecurityConfig;
 import com.foodflow.dao.ItemDAO;
 import com.foodflow.model.Item;
+import com.foodflow.model.User;
 import com.foodflow.util.GsonUtil;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -11,6 +13,7 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.util.List;
@@ -23,7 +26,12 @@ public class ItemAPI extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
+
+        User currentUser = requireAuthenticatedUser(request, response);
+        if (currentUser == null) {
+            return;
+        }
+
         String action = request.getParameter("action");
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
@@ -56,12 +64,22 @@ public class ItemAPI extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
+
+        User currentUser = requireAuthenticatedUser(request, response);
+        if (currentUser == null) {
+            return;
+        }
+
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
 
         try {
             String action = request.getParameter("action");
+
+            if (!SecurityConfig.canManageInventory(currentUser)) {
+                sendError(response, "Access denied: only Store Keeper can manage inventory", 403);
+                return;
+            }
             
             if ("add".equals(action)) {
                 String itemName = request.getParameter("itemName");
@@ -144,5 +162,19 @@ public class ItemAPI extends HttpServlet {
         JsonObject error = new JsonObject();
         error.addProperty("error", message);
         response.getWriter().write(gson.toJson(error));
+    }
+
+    private User requireAuthenticatedUser(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            sendError(response, "Authentication required", 401);
+            return null;
+        }
+        Object userAttr = session.getAttribute("user");
+        if (!(userAttr instanceof User)) {
+            sendError(response, "Authentication required", 401);
+            return null;
+        }
+        return (User) userAttr;
     }
 }

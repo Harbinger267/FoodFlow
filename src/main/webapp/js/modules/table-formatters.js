@@ -21,13 +21,20 @@ function getExpiryBadge(item) {
  * Helper: Get action buttons for items
  */
 function getActionButtons(item) {
+    const canEdit = typeof hasCapability === 'function' && hasCapability('canUpdateInventory');
+    const editButton = canEdit
+        ? `
+        <button class="btn-action-sm" onclick="editItem(${item.itemId})" title="Edit">
+            <i class="fa-solid fa-pen"></i>
+        </button>
+    `
+        : '';
+
     return `
         <button class="btn-action-sm" onclick="viewItem(${item.itemId})" title="View">
             <i class="fa-solid fa-eye"></i>
         </button>
-        <button class="btn-action-sm" onclick="editItem(${item.itemId})" title="Edit">
-            <i class="fa-solid fa-pen"></i>
-        </button>
+        ${editButton}
     `;
 }
 

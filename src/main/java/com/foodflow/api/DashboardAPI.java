@@ -1,9 +1,17 @@
 package com.foodflow.api;
 
+import com.foodflow.config.SecurityConfig;
 import com.foodflow.dao.DamageDAO;
 import com.foodflow.dao.ItemDAO;
 import com.foodflow.dao.StoreRequestDAO;
+import com.foodflow.dao.SystemDAO;
+import com.foodflow.dao.UsageDAO;
+import com.foodflow.model.Damage;
 import com.foodflow.model.Item;
+import com.foodflow.model.StoreRequest;
+import com.foodflow.model.SystemLog;
+import com.foodflow.model.Usage;
+import com.foodflow.model.User;
 import com.foodflow.util.GsonUtil;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -14,8 +22,11 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,26 +35,29 @@ import java.util.Map;
 public class DashboardAPI extends HttpServlet {
     private final ItemDAO itemDAO = new ItemDAO();
     private final DamageDAO damageDAO = new DamageDAO();
+    private final UsageDAO usageDAO = new UsageDAO();
+    private final SystemDAO systemDAO = new SystemDAO();
     private final StoreRequestDAO storeRequestDAO = new StoreRequestDAO();
     private final Gson gson = GsonUtil.get();
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
-        System.out.println("DashboardAPI.doGet called - Action: " + request.getParameter("action"));
+
+        User currentUser = requireAuthenticatedUser(request, response);
+        if (currentUser == null) {
+            return;
+        }
+
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
 
         try {
             String action = request.getParameter("action");
-            System.out.println("Processing dashboard action: " + action);
             
             if ("stats".equals(action)) {
-                System.out.println("Getting dashboard stats...");
-                // Get dashboard statistics
-                JsonObject stats = getDashboardStats();
-                System.out.println("Stats retrieved: " + stats.toString());
+                JsonObject stats = getDashboardStats(currentUser);
                 response.getWriter().write(gson.toJson(stats));
                 
             } else if ("lowStock".equals(action)) {
@@ -68,21 +82,18 @@ public class DashboardAPI extends HttpServlet {
                 response.getWriter().write(gson.toJson(responseObj));
                 
             } else if ("recentActivity".equals(action)) {
-                // Get recent activity (damages and requests)
-                JsonObject activity = getRecentActivity();
+                JsonObject activity = getRecentActivity(currentUser);
                 response.getWriter().write(gson.toJson(activity));
                 
             } else if ("charts".equals(action)) {
-                // Get chart data
                 JsonObject chartData = getChartData();
                 response.getWriter().write(gson.toJson(chartData));
                 
             } else {
-                // Default: return all dashboard data
                 JsonObject dashboardData = new JsonObject();
-                dashboardData.add("stats", getDashboardStats());
+                dashboardData.add("stats", getDashboardStats(currentUser));
                 dashboardData.add("lowStock", getLowStockData());
-                dashboardData.add("recentActivity", getRecentActivity());
+                dashboardData.add("recentActivity", getRecentActivity(currentUser));
                 dashboardData.add("charts", getChartData());
                 response.getWriter().write(gson.toJson(dashboardData));
             }
@@ -92,7 +103,7 @@ public class DashboardAPI extends HttpServlet {
         }
     }
 
-    private JsonObject getDashboardStats() throws IOException {
+    private JsonObject getDashboardStats(User user) throws IOException {
         JsonObject stats = new JsonObject();
         
         List<Item> allItems = itemDAO.getAllItems();
@@ -116,7 +127,10 @@ public class DashboardAPI extends HttpServlet {
         List<com.foodflow.model.Damage> damages = damageDAO.getAllDamage();
         int damagedCount = damages.size();
         
-        int pendingRequests = storeRequestDAO.countPendingRequests();
+        int pendingRequests = SecurityConfig.canCreateRequests(user)
+                ? storeRequestDAO.countPendingRequestsForRequester(user.getUserId())
+                : storeRequestDAO.countPendingRequests();
+        int systemLogCount = systemDAO.getRecentLogs().size();
         
         stats.addProperty("totalItems", totalItems);
         stats.addProperty("inStock", inStock);
@@ -124,6 +138,8 @@ public class DashboardAPI extends HttpServlet {
         stats.addProperty("outOfStock", outOfStock);
         stats.addProperty("damagedCount", damagedCount);
         stats.addProperty("pendingRequests", pendingRequests);
+        stats.addProperty("systemLogCount", systemLogCount);
+        stats.addProperty("role", user.getRole().name());
         
         return stats;
     }
@@ -148,28 +164,75 @@ public class DashboardAPI extends HttpServlet {
         return lowStockItems;
     }
 
-    private JsonObject getRecentActivity() {
+    private JsonObject getRecentActivity(User user) {
         JsonObject activity = new JsonObject();
         JsonArray activities = new JsonArray();
         
         try {
-            // Get recent damages
-            List<com.foodflow.model.Damage> damages = damageDAO.getAllDamage();
-            int count = 0;
-            for (com.foodflow.model.Damage damage : damages) {
-                if (count >= 5) break; // Limit to 5 recent activities
-                
-                JsonObject act = new JsonObject();
-                act.addProperty("type", "damage");
-                act.addProperty("description", "Damage reported: " + damage.getDamageType());
-                act.addProperty("quantity", damage.getQuantity());
-                act.addProperty("date", damage.getReportDate() != null ? damage.getReportDate().toString() : "Unknown");
-                activities.add(act);
-                count++;
+            appendRoleBlueprintActivities(activities, user);
+
+            if (SecurityConfig.isAdmin(user)) {
+                List<SystemLog> logs = systemDAO.getRecentLogs();
+                int count = 0;
+                for (SystemLog log : logs) {
+                    if (count >= 5) break;
+                    addActivity(
+                            activities,
+                            "system",
+                            log.getAction(),
+                            0,
+                            log.getTimestamp() == null ? nowIso() : log.getTimestamp().format(DATE_FORMATTER)
+                    );
+                    count++;
+                }
+            } else if (SecurityConfig.isDepartmentHead(user)) {
+                List<StoreRequest> pending = storeRequestDAO.getPendingRequests();
+                int count = 0;
+                for (StoreRequest req : pending) {
+                    if (count >= 5) break;
+                    addActivity(
+                            activities,
+                            "request",
+                            "Pending request from " + safe(req.getRequesterName()) + " for " + safe(req.getItemName()),
+                            req.getQuantityRequested(),
+                            req.getRequestDate() == null ? nowIso() : req.getRequestDate().format(DATE_FORMATTER)
+                    );
+                    count++;
+                }
+            } else {
+                int count = 0;
+                List<Damage> damages = damageDAO.getAllDamage();
+                for (Damage damage : damages) {
+                    if (count >= 3) break;
+                    if (damage.getReportedByUserId() != null && damage.getReportedByUserId() == user.getUserId()) {
+                        addActivity(
+                                activities,
+                                "damage",
+                                "Damage logged for " + safe(damage.getItemName()),
+                                damage.getQuantity(),
+                                damage.getDateString() == null ? nowIso() : damage.getDateString()
+                        );
+                        count++;
+                    }
+                }
+
+                count = 0;
+                List<Usage> usages = usageDAO.getAllUsage();
+                for (Usage usage : usages) {
+                    if (count >= 3) break;
+                    if (usage.getRecordedBy() != null && usage.getRecordedBy() == user.getUserId()) {
+                        addActivity(
+                                activities,
+                                "usage",
+                                "Issued/Borrowed " + safe(usage.getItemName()) + " to " + safe(usage.getIssuedTo()),
+                                usage.getQuantity(),
+                                usage.getDate() == null ? nowIso() : usage.getDate().atStartOfDay().format(DATE_FORMATTER)
+                        );
+                        count++;
+                    }
+                }
             }
-            
-            // TODO: Add recent store requests when available
-            
+
             activity.add("items", activities);
             activity.addProperty("count", activities.size());
             
@@ -240,5 +303,72 @@ public class DashboardAPI extends HttpServlet {
         JsonObject error = new JsonObject();
         error.addProperty("error", message);
         response.getWriter().write(gson.toJson(error));
+    }
+
+    private User requireAuthenticatedUser(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            sendError(response, "Authentication required", 401);
+            return null;
+        }
+        Object userAttr = session.getAttribute("user");
+        if (!(userAttr instanceof User)) {
+            sendError(response, "Authentication required", 401);
+            return null;
+        }
+        return (User) userAttr;
+    }
+
+    private void appendRoleBlueprintActivities(JsonArray activities, User user) {
+        if (user == null) {
+            return;
+        }
+
+        String[] blueprint;
+        if (SecurityConfig.isAdmin(user)) {
+            blueprint = new String[]{
+                    "Manage users (add, update, delete)",
+                    "Perform system maintenance tasks",
+                    "Run database backup/restore operations",
+                    "Review system logs and audit activity",
+                    "Access reporting overview"
+            };
+        } else if (SecurityConfig.isDepartmentHead(user)) {
+            blueprint = new String[]{
+                    "Review pending store requests",
+                    "Approve or reject requests",
+                    "Generate report outputs",
+                    "Review charts and summary reports"
+            };
+        } else {
+            blueprint = new String[]{
+                    "Update supplied inventory records",
+                    "Record issued items/usage",
+                    "Submit store requests",
+                    "Record damaged items",
+                    "Search and view item list"
+            };
+        }
+
+        for (String step : blueprint) {
+            addActivity(activities, "role", "[Role Task] " + step, 0, nowIso());
+        }
+    }
+
+    private void addActivity(JsonArray activities, String type, String description, double quantity, String isoDate) {
+        JsonObject act = new JsonObject();
+        act.addProperty("type", type);
+        act.addProperty("description", description);
+        act.addProperty("quantity", quantity);
+        act.addProperty("date", isoDate);
+        activities.add(act);
+    }
+
+    private String nowIso() {
+        return LocalDateTime.now().format(DATE_FORMATTER);
+    }
+
+    private String safe(String value) {
+        return value == null || value.isBlank() ? "N/A" : value;
     }
 }

@@ -8,7 +8,7 @@ public class DatabaseConfig {
 
     private static final String DB_URL = getEnvOrDefault("FOODFLOW_DB_URL", "jdbc:mysql://localhost:3306/foodflow");
     private static final String DB_USER = getEnvOrDefault("FOODFLOW_DB_USER", "root");
-    private static final String DB_PASSWORD = getEnvOrDefault("FOODFLOW_DB_PASSWORD", "");
+    private static final String DB_PASSWORD = getEnvOrDefault("FOODFLOW_DB_PASSWORD", "CosHar#123");
 
     static {
         try {
