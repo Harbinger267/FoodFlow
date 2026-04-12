@@ -14,7 +14,8 @@ const ENDPOINTS = {
     DAMAGE: `${CONTEXT_ROOT}/api/damage`,
     USAGE: `${CONTEXT_ROOT}/api/usage`,
     DASHBOARD: `${CONTEXT_ROOT}/api/dashboard`,
-    REQUESTS: `${CONTEXT_ROOT}/api/requests`
+    REQUESTS: `${CONTEXT_ROOT}/api/requests`,
+    USERS: `${CONTEXT_ROOT}/admin/users`
 };
 
 /**
@@ -246,6 +247,10 @@ const DashboardAPI = {
         return fetchAPI(`${ENDPOINTS.DASHBOARD}?action=lowStock`);
     },
 
+    getSystemAlerts() {
+        return fetchAPI(`${ENDPOINTS.DASHBOARD}?action=systemAlerts`);
+    },
+
     getRecentActivity() {
         return fetchAPI(`${ENDPOINTS.DASHBOARD}?action=recentActivity`);
     },
@@ -282,19 +287,64 @@ const RequestsAPI = {
         params.append('quantity', requestData.quantity);
         params.append('notes', requestData.notes || '');
 
-        const response = await fetch(ENDPOINTS.REQUESTS, {
+        return fetchAPI(ENDPOINTS.REQUESTS, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
             body: params
         });
-        return await response.json();
     },
 
     async approve(requestId) {
         const params = new URLSearchParams();
         params.append('action', 'approve');
         params.append('requestId', requestId);
-        const response = await fetch(ENDPOINTS.REQUESTS, {
+
+        return fetchAPI(ENDPOINTS.REQUESTS, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: params
+        });
+    },
+
+    async reject(requestId) {
+        const params = new URLSearchParams();
+        params.append('action', 'reject');
+        params.append('requestId', requestId);
+
+        return fetchAPI(ENDPOINTS.REQUESTS, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: params
+        });
+    }
+};
+
+/**
+ * Admin Users API
+ */
+const UsersAPI = {
+    list() {
+        return fetchAPI(`${ENDPOINTS.USERS}?action=list`);
+    },
+
+    async create(userData) {
+        const params = new URLSearchParams();
+        params.append('action', 'add');
+        params.append('username', userData.username);
+        params.append('email', userData.email);
+        params.append('role', userData.role);
+        params.append('tempPassword', userData.tempPassword);
+
+        const response = await fetch(ENDPOINTS.USERS, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: params
@@ -302,11 +352,43 @@ const RequestsAPI = {
         return await response.json();
     },
 
-    async reject(requestId) {
+    async update(userData) {
         const params = new URLSearchParams();
-        params.append('action', 'reject');
-        params.append('requestId', requestId);
-        const response = await fetch(ENDPOINTS.REQUESTS, {
+        params.append('action', 'update');
+        params.append('userId', userData.userId);
+        params.append('username', userData.username);
+        params.append('email', userData.email);
+        params.append('role', userData.role);
+        params.append('status', userData.status);
+
+        const response = await fetch(ENDPOINTS.USERS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params
+        });
+        return await response.json();
+    },
+
+    async resetPassword(userId, tempPassword) {
+        const params = new URLSearchParams();
+        params.append('action', 'resetPassword');
+        params.append('userId', userId);
+        params.append('tempPassword', tempPassword);
+
+        const response = await fetch(ENDPOINTS.USERS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params
+        });
+        return await response.json();
+    },
+
+    async remove(userId) {
+        const params = new URLSearchParams();
+        params.append('action', 'delete');
+        params.append('userId', userId);
+
+        const response = await fetch(ENDPOINTS.USERS, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: params
@@ -322,5 +404,6 @@ window.FoodFlowAPI = {
     usage: UsageAPI,
     dashboard: DashboardAPI,
     requests: RequestsAPI,
+    users: UsersAPI,
     fetchAPI
 };

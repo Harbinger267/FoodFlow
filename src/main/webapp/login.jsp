@@ -8,12 +8,16 @@
     <title>FoodFlow - Login</title>
     <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/login.css?v=20260409">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/login.css?v=20260420">
 
 </head>
 <body>
     <div class="auth-container">
         <div class="auth-card">
+            <button type="button" class="theme-toggle-login" id="loginThemeBtn" aria-label="Switch to light mode">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+
             <div class="auth-header">
                 <div class="auth-logo">
                     <i class="fas fa-utensils"></i>
@@ -23,8 +27,8 @@
             </div>
 
             <!-- Login Instructions -->
-            <div style="background: rgba(124, 58, 237, 0.1); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 20px; font-size: 12px; color: var(--text-secondary);">
-                <i class="fas fa-info-circle" style="color: var(--purple-300);"></i> 
+            <div class="login-hint">
+                <i class="fas fa-info-circle"></i>
                 <strong>Use one of the case-study accounts</strong>: Admin User, Department Head, or Store Keeper.
             </div>
 
@@ -95,7 +99,7 @@
         </div>
     </div>
 
-    <script src="${pageContext.request.contextPath}/js/login.js?v=20260409"></script>
+    <script src="${pageContext.request.contextPath}/js/login.js?v=20260420"></script>
 
 </body>
 </html>

@@ -4,13 +4,13 @@ const ROLE_POLICIES = {
     ADMIN: {
         displayName: "Admin",
         defaultPage: "dashboard",
-        allowedPages: ["dashboard", "adminusers", "adminops", "logs", "reports"],
+        allowedPages: ["dashboard", "adminusers", "adminops", "logs"],
         capabilities: {
             canManageUsers: true,
             canSystemMaintenance: true,
             canDatabaseOps: true,
             canViewSystemLogs: true,
-            canViewReports: true,
+            canViewReports: false,
             canApproveRequests: false,
             canCreateRequests: false,
             canUpdateInventory: false,
@@ -20,9 +20,9 @@ const ROLE_POLICIES = {
             canViewInventory: false
         },
         statLabels: {
-            total: "Total Items",
-            inStock: "In Stock",
-            damaged: "Damaged Items",
+            total: "Total Users",
+            inStock: "Active Users",
+            damaged: "Admin Accounts",
             fourth: "System Logs"
         },
         activityLog: [
@@ -30,13 +30,13 @@ const ROLE_POLICIES = {
             "Perform system maintenance",
             "Run backup/restore operations",
             "View system logs",
-            "View reports"
+            "Monitor system health"
         ]
     },
     DEPARTMENT_HEAD: {
         displayName: "Department Head",
         defaultPage: "dashboard",
-        allowedPages: ["dashboard", "requests", "reports"],
+        allowedPages: ["dashboard", "requests", "available", "damaged", "staffrecords", "reports"],
         capabilities: {
             canManageUsers: false,
             canSystemMaintenance: false,
@@ -48,8 +48,8 @@ const ROLE_POLICIES = {
             canUpdateInventory: false,
             canRecordDamages: false,
             canRecordIssuedItems: false,
-            canSearchItems: false,
-            canViewInventory: false
+            canSearchItems: true,
+            canViewInventory: true
         },
         statLabels: {
             total: "Total Items",
@@ -58,10 +58,11 @@ const ROLE_POLICIES = {
             fourth: "Pending Approvals"
         },
         activityLog: [
+            "View inventory records",
             "View pending store requests",
             "Approve or reject requests",
-            "Generate reports",
-            "Review dashboard charts"
+            "Generate stock, damage, and issuing reports",
+            "Generate invoice for approved requests"
         ]
     },
     STOREKEEPER: {
@@ -100,7 +101,10 @@ const ROLE_POLICIES = {
 };
 
 function normalizeUserRole(rawRole) {
-    const role = (rawRole || "").toUpperCase().trim();
+    const role = (rawRole || "")
+        .toUpperCase()
+        .trim()
+        .replace(/[\s-]+/g, "_");
     if (role === "STORE_KEEPER") return "STOREKEEPER";
     if (role === "STOREKEEPER") return "STOREKEEPER";
     if (role === "DEPARTMENT_HEAD") return "DEPARTMENT_HEAD";

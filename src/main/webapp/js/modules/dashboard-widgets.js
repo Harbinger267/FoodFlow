@@ -1,20 +1,53 @@
 /* Dashboard widget rendering helpers */
 
 function populateLowStockList(items) {
+    populateDashboardAlerts(items, 'stock');
+}
+
+function populateDashboardAlerts(items, mode) {
     const container = document.getElementById('lowStockList');
-    container.innerHTML = '';
-    
-    if (items.length === 0) {
-        container.innerHTML = '<div class="alert-item"><span class="text-muted">No low stock alerts</span></div>';
+    if (!container) {
         return;
     }
+
+    container.innerHTML = '';
+    const list = Array.isArray(items) ? items : [];
     
-    items.forEach(item => {
+    if (list.length === 0) {
+        const emptyMessage = mode === 'system'
+            ? 'No recent system alerts'
+            : 'No low stock alerts';
+        container.innerHTML = `<div class="alert-item"><span class="text-muted">${emptyMessage}</span></div>`;
+        return;
+    }
+
+    if (mode === 'system') {
+        list.forEach((item) => {
+            const severity = item.severity === 'danger' ? 'danger' : (item.severity === 'warn' ? 'warn' : 'info');
+            const iconClass = severity === 'danger'
+                ? 'fa-circle-xmark'
+                : (severity === 'warn' ? 'fa-triangle-exclamation' : 'fa-circle-info');
+            const label = severity === 'danger'
+                ? 'Critical'
+                : (severity === 'warn' ? 'Attention' : 'Info');
+            const alertItem = `
+                <div class="alert-item ${severity}">
+                    <i class="fa-solid ${iconClass} alert-item-icon"></i>
+                    <span class="alert-item-name">${escapeDashboardText(item.message || 'System event')}</span>
+                    <span class="alert-item-qty">${label}</span>
+                </div>
+            `;
+            container.innerHTML += alertItem;
+        });
+        return;
+    }
+
+    list.forEach((item) => {
         const alertItem = `
             <div class="alert-item warn">
                 <i class="fa-solid fa-triangle-exclamation alert-item-icon"></i>
-                <span class="alert-item-name">${item.name}</span>
-                <span class="alert-item-qty">${item.currentStock} left</span>
+                <span class="alert-item-name">${escapeDashboardText(item.name || 'Item')}</span>
+                <span class="alert-item-qty">${item.currentStock || 0} left</span>
             </div>
         `;
         container.innerHTML += alertItem;
@@ -60,5 +93,15 @@ function populateRecentActivity(activities) {
         `;
         container.innerHTML += activityItem;
     });
+}
+
+function escapeDashboardText(value) {
+    const text = String(value == null ? '' : value);
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 

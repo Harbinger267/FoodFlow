@@ -4,114 +4,105 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FoodFlow - School Inventory System</title>
-    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+    <title>FoodFlow - School Inventory</title>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Source+Code+Pro:wght@500;700&display=swap" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="<%= request.getContextPath() %>/css/index.css?v=20260409" />
-    <link rel="stylesheet" href="<%= request.getContextPath() %>/css/landing.css?v=20260409" />
+    <link rel="stylesheet" href="<%= request.getContextPath() %>/css/landing.css?v=20260420" />
 </head>
-<body class="landing-body">
-    <div class="landing-shell">
-        <header class="landing-topbar card-panel">
-            <div class="landing-brand">
-                <span class="landing-brand-icon"><i class="fas fa-utensils"></i></span>
-                <span class="landing-brand-copy">
+<body class="lp-body light-mode">
+    <header class="lp-topbar">
+        <div class="lp-topbar-inner">
+            <a href="<%= request.getContextPath() %>/landing.jsp" class="lp-brand">
+                <span class="lp-brand-icon" aria-hidden="true"><i class="fa-solid fa-warehouse"></i></span>
+                <span class="lp-brand-copy">
                     <strong>FoodFlow</strong>
-                    <small>School Inventory System</small>
+                    <small>School Catering Inventory</small>
                 </span>
+            </a>
+
+            <button class="icon-btn" id="themeBtn" aria-label="Switch to dark mode">
+                <i class="fa-solid fa-sun"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="lp-main">
+        <section class="lp-hero">
+            <h1>FoodFlow</h1>
+            <p class="lp-subtext">
+                A simple school inventory system for tracking stock, handling approvals, and generating reports
+                across Store Keeper, Department Head, and Admin roles.
+            </p>
+            <div class="lp-hero-actions">
+                <a href="<%= request.getContextPath() %>/login.jsp" class="lp-btn lp-btn-primary">Sign In</a>
+                <a href="#workflow" class="lp-btn lp-btn-outline">Workflow</a>
             </div>
+        </section>
 
-            <div class="landing-top-actions">
-                <button type="button" id="landingThemeBtn" class="icon-btn" aria-label="Toggle theme">
-                    <i class="fa-solid fa-moon"></i>
-                </button>
-                <a class="btn-primary-action" href="<%= request.getContextPath() %>/login.jsp">
-                    <i class="fa-solid fa-right-to-bracket"></i> Log In
-                </a>
+        <section class="lp-workflow" id="workflow">
+            <h2>Workflow Overview</h2>
+            <div class="lp-workflow-cards">
+                <article class="lp-workflow-card">
+                    <span>1</span>
+                    <h3>Record Inventory</h3>
+                    <p>Store Keeper updates stock levels and daily issuing or damage events.</p>
+                </article>
+                <article class="lp-workflow-card">
+                    <span>2</span>
+                    <h3>Approve or Reject Requests</h3>
+                    <p>Department Head reviews requests and applies accountable decisions.</p>
+                </article>
+                <article class="lp-workflow-card">
+                    <span>3</span>
+                    <h3>Generate Reports</h3>
+                    <p>Users export stock, damage, and issuing records for school follow-up.</p>
+                </article>
             </div>
-        </header>
+        </section>
+    </main>
 
-        <main class="landing-main">
-            <section class="landing-hero card-panel">
-                <h1>FoodFlow</h1>
-                <p>
-                    FoodFlow helps schools manage stock with clear role responsibilities, request approvals,
-                    and day-to-day inventory visibility for safer and more reliable operations.
-                </p>
-            </section>
-
-            <section class="landing-grid">
-                <article class="card-panel landing-card">
-                    <h2><i class="fa-solid fa-users"></i> System Roles</h2>
-                    <ul>
-                        <li><strong>Admin (ICT):</strong> manages users, maintenance, logs, and backup operations.</li>
-                        <li><strong>Department Head:</strong> reviews store requests, approvals, and reporting insights.</li>
-                        <li><strong>StoreKeeper:</strong> updates stock, records issues/damage, and handles inventory workflow.</li>
-                    </ul>
-                </article>
-
-                <article class="card-panel landing-card">
-                    <h2><i class="fa-solid fa-chart-column"></i> Snapshot</h2>
-                    <div class="landing-metrics">
-                        <div class="metric-box">
-                            <span class="metric-value">3</span>
-                            <span class="metric-label">Active Roles</span>
-                        </div>
-                        <div class="metric-box">
-                            <span class="metric-value">9</span>
-                            <span class="metric-label">Core Tables</span>
-                        </div>
-                        <div class="metric-box">
-                            <span class="metric-value">4</span>
-                            <span class="metric-label">API Modules</span>
-                        </div>
-                    </div>
-                </article>
-            </section>
-        </main>
-
-        <footer class="landing-footer card-panel">
-            <div class="landing-footer-main">
+    <footer class="lp-footer">
+        <div class="lp-footer-inner">
+            <div class="lp-footer-copy">
                 <strong>FoodFlow</strong>
-                <span>Built by Flow Systems</span>
+                <span>Built for school inventory operations.</span>
             </div>
-
-            <nav class="landing-footer-links" aria-label="Footer links">
+            <nav class="lp-footer-links" aria-label="Footer links">
                 <a href="#">Contact Support</a>
                 <a href="#">Privacy Policy</a>
                 <a href="#">Terms &amp; Conditions</a>
             </nav>
-
-            <div class="landing-socials" aria-label="Social media links">
-                <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
-                <a href="#" aria-label="X"><i class="fa-brands fa-x-twitter"></i></a>
-                <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
-                <a href="#" aria-label="LinkedIn"><i class="fa-brands fa-linkedin-in"></i></a>
-            </div>
-        </footer>
-    </div>
+            <p>&copy; <%= java.time.Year.now() %> FoodFlow</p>
+        </div>
+    </footer>
 
     <script>
-        (function initLandingTheme() {
-            const storageKey = 'foodflow-theme';
-            const themeBtn = document.getElementById('landingThemeBtn');
-            const icon = themeBtn.querySelector('i');
+        (function initThemeToggle() {
+            const themeBtn = document.getElementById('themeBtn');
             const body = document.body;
+            if (!themeBtn) {
+                return;
+            }
 
-            const applyTheme = (isLight) => {
-                body.classList.toggle('light-mode', isLight);
-                icon.classList.toggle('fa-sun', isLight);
-                icon.classList.toggle('fa-moon', !isLight);
-            };
-
-            const savedTheme = localStorage.getItem(storageKey);
-            applyTheme(savedTheme === 'light');
+            const icon = themeBtn.querySelector('i');
+            const savedTheme = localStorage.getItem('foodflowTheme');
+            const shouldUseLight = savedTheme ? savedTheme === 'light' : true;
+            applyThemeState(shouldUseLight);
 
             themeBtn.addEventListener('click', () => {
                 const nextIsLight = !body.classList.contains('light-mode');
-                applyTheme(nextIsLight);
-                localStorage.setItem(storageKey, nextIsLight ? 'light' : 'dark');
+                applyThemeState(nextIsLight);
+                localStorage.setItem('foodflowTheme', nextIsLight ? 'light' : 'dark');
             });
+
+            function applyThemeState(isLight) {
+                body.classList.toggle('light-mode', isLight);
+                if (icon) {
+                    icon.classList.toggle('fa-sun', isLight);
+                    icon.classList.toggle('fa-moon', !isLight);
+                }
+                themeBtn.setAttribute('aria-label', isLight ? 'Switch to dark mode' : 'Switch to light mode');
+            }
         })();
     </script>
 </body>

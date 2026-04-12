@@ -46,19 +46,33 @@ public class StoreRequestDAO {
     }
 
     public boolean updateRequestStatus(int requestId, int approverId, String status) {
-        String sql = "UPDATE store_requests sr " +
-                "JOIN request_details rd ON sr.request_id = rd.request_id " +
-                "SET sr.status = ?, sr.approver_id = ?, sr.approved_date = CURRENT_TIMESTAMP, " +
-                "rd.quantity_approved = CASE WHEN ? = 'APPROVED' THEN rd.quantity_requested ELSE 0 END " +
-                "WHERE sr.request_id = ?";
+        String requestSql = "UPDATE store_requests " +
+                "SET status = ?, approver_id = ?, approved_date = CURRENT_TIMESTAMP " +
+                "WHERE request_id = ? AND status = 'PENDING'";
+        String detailSql = "UPDATE request_details " +
+                "SET quantity_approved = CASE WHEN ? = 'APPROVED' THEN quantity_requested ELSE 0 END " +
+                "WHERE request_id = ?";
         try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+             PreparedStatement requestStmt = conn.prepareStatement(requestSql);
+             PreparedStatement detailStmt = conn.prepareStatement(detailSql)) {
             String normalized = status == null ? "PENDING" : status.toUpperCase();
-            stmt.setString(1, normalized);
-            stmt.setInt(2, approverId);
-            stmt.setString(3, normalized);
-            stmt.setInt(4, requestId);
-            return stmt.executeUpdate() > 0;
+            conn.setAutoCommit(false);
+
+            requestStmt.setString(1, normalized);
+            requestStmt.setInt(2, approverId);
+            requestStmt.setInt(3, requestId);
+            int requestRows = requestStmt.executeUpdate();
+            if (requestRows == 0) {
+                conn.rollback();
+                return false;
+            }
+
+            detailStmt.setString(1, normalized);
+            detailStmt.setInt(2, requestId);
+            detailStmt.executeUpdate();
+
+            conn.commit();
+            return true;
         } catch (SQLException e) {
             e.printStackTrace();
         }

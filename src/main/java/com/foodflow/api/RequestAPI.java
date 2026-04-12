@@ -117,7 +117,10 @@ public class RequestAPI extends HttpServlet {
 
                 JsonObject payload = new JsonObject();
                 payload.addProperty("success", success);
-                payload.addProperty("message", success ? "Request " + status.toLowerCase() : "Failed to update request");
+                payload.addProperty("message",
+                        success
+                                ? "Request " + status.toLowerCase()
+                                : "Request could not be updated. It may already be processed or invalid.");
                 response.getWriter().write(gson.toJson(payload));
                 return;
             }
