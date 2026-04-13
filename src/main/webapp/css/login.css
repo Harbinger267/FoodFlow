@@ -280,7 +280,7 @@ body.light-mode .alert-success {
     position: relative;
 }
 
-.input-wrapper i {
+.input-wrapper > i {
     position: absolute;
     left: 14px;
     top: 50%;
@@ -398,6 +398,14 @@ body.light-mode .btn-primary:hover {
     cursor: pointer;
     transition: var(--transition);
     font-size: 16px;
+}
+
+.password-toggle i {
+    position: static;
+    left: auto;
+    top: auto;
+    transform: none;
+    color: inherit;
 }
 
 .password-toggle:hover {
