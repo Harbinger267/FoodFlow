@@ -113,7 +113,8 @@ public class RequestAPI extends HttpServlet {
 
                 int requestId = Integer.parseInt(request.getParameter("requestId"));
                 String status = "approve".equals(action) ? "APPROVED" : "REJECTED";
-                boolean success = storeRequestDAO.updateRequestStatus(requestId, currentUser.getUserId(), status);
+                String rejectionNote = request.getParameter("rejectionNote");
+                boolean success = storeRequestDAO.updateRequestStatus(requestId, currentUser.getUserId(), status, rejectionNote);
 
                 JsonObject payload = new JsonObject();
                 payload.addProperty("success", success);

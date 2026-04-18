@@ -1184,16 +1184,25 @@ function initRoleActionHandlers() {
             const approveBtn = event.target.closest('[data-request-approve]');
             const rejectBtn = event.target.closest('[data-request-reject]');
             const invoiceBtn = event.target.closest('[data-request-invoice]');
+            const viewBtn = event.target.closest('[data-request-view]');
             if (approveBtn) {
                 await decideStoreRequest(parseInt(approveBtn.dataset.requestApprove, 10), 'approve');
             }
             if (rejectBtn) {
-                await decideStoreRequest(parseInt(rejectBtn.dataset.requestReject, 10), 'reject');
+                openRejectRequestModal(parseInt(rejectBtn.dataset.requestReject, 10));
             }
             if (invoiceBtn) {
                 exportRequestInvoice(parseInt(invoiceBtn.dataset.requestInvoice, 10));
             }
+            if (viewBtn) {
+                viewStoreRequestDetails(parseInt(viewBtn.dataset.requestView, 10));
+            }
         });
+    }
+
+    const saveRejectRequestBtn = document.getElementById('saveRejectRequestBtn');
+    if (saveRejectRequestBtn) {
+        saveRejectRequestBtn.addEventListener('click', submitStoreRequestRejection);
     }
 
     const adminCreateUserBtn = document.getElementById('adminCreateUserBtn');
@@ -1283,16 +1292,16 @@ async function submitStoreRequest() {
     }
 }
 
-async function decideStoreRequest(requestId, action) {
+async function decideStoreRequest(requestId, action, rejectionNote) {
     if (!requestId || Number.isNaN(requestId)) {
         showToast('Invalid request selected', 'warning');
-        return;
+        return false;
     }
 
     try {
         const result = action === 'approve'
             ? await FoodFlowAPI.requests.approve(requestId)
-            : await FoodFlowAPI.requests.reject(requestId);
+            : await FoodFlowAPI.requests.reject(requestId, rejectionNote || '');
         if (result && result.success) {
             showToast(action === 'approve' ? 'Request approved' : 'Request rejected', 'success');
             if (action === 'approve' && window.confirm('Request approved. Generate invoice now?')) {
@@ -1300,12 +1309,55 @@ async function decideStoreRequest(requestId, action) {
             }
             await loadRequestRecords();
             await loadDashboardData();
+            return true;
         } else {
             showToast((result && (result.message || result.error)) || 'Could not update request', 'danger');
+            return false;
         }
     } catch (error) {
         console.error('Request decision failed:', error);
         showToast('Error updating request: ' + error.message, 'danger');
+        return false;
+    }
+}
+
+function openRejectRequestModal(requestId) {
+    const request = (requestRecords || []).find((entry) => Number(entry.requestId) === Number(requestId));
+    if (!request) {
+        showToast('Request not found', 'warning');
+        return;
+    }
+
+    const idEl = document.getElementById('rejectRequestId');
+    const summaryEl = document.getElementById('rejectRequestSummary');
+    const noteEl = document.getElementById('rejectRequestNote');
+    const modalEl = document.getElementById('rejectRequestModal');
+
+    if (!idEl || !summaryEl || !noteEl || !modalEl) {
+        showToast('Reject-request modal is unavailable', 'danger');
+        return;
+    }
+
+    idEl.value = String(request.requestId);
+    summaryEl.value = `#${request.requestId} - ${request.itemName || 'Item'} (${request.quantityRequested || 0})`;
+    noteEl.value = '';
+
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+async function submitStoreRequestRejection() {
+    const requestId = parseInt((document.getElementById('rejectRequestId') || {}).value, 10);
+    const note = ((document.getElementById('rejectRequestNote') || {}).value || '').trim();
+
+    if (!requestId || Number.isNaN(requestId)) {
+        showToast('Invalid request selected', 'warning');
+        return;
+    }
+
+    const success = await decideStoreRequest(requestId, 'reject', note);
+    if (success) {
+        closeModal('rejectRequestModal');
     }
 }
 
@@ -1338,7 +1390,12 @@ function renderRequestQueue() {
     const canApprove = hasCapability('canApproveRequests');
     const rows = requestRecords.map((request) => {
         const status = (request.status || 'PENDING').toUpperCase();
-        let actionHtml = '<span class="text-muted">View</span>';
+        const viewButton = `
+            <button class="btn-action-sm" data-request-view="${request.requestId}" title="View Details">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+        `;
+        let actionHtml = viewButton;
         if (canApprove && status === 'PENDING') {
             actionHtml = `
                 <button class="btn-action-sm" data-request-approve="${request.requestId}" title="Approve">
@@ -1347,12 +1404,14 @@ function renderRequestQueue() {
                 <button class="btn-action-sm" data-request-reject="${request.requestId}" title="Reject">
                   <i class="fa-solid fa-xmark"></i>
                 </button>
+                ${viewButton}
             `;
         } else if (canApprove && status === 'APPROVED') {
             actionHtml = `
                 <button class="btn-action-sm" data-request-invoice="${request.requestId}" title="Generate Invoice">
                   <i class="fa-solid fa-file-invoice"></i>
                 </button>
+                ${viewButton}
             `;
         }
         const quantity = status === 'APPROVED'
@@ -1370,6 +1429,102 @@ function renderRequestQueue() {
         `;
     });
     body.innerHTML = rows.join('');
+}
+
+function splitRequestNotes(rawNotes) {
+    const text = String(rawNotes || '').trim();
+    const marker = 'Department Rejection Note:';
+    if (!text) {
+        return { requesterNotes: '', rejectionReason: '' };
+    }
+    const markerIndex = text.lastIndexOf(marker);
+    if (markerIndex < 0) {
+        return { requesterNotes: text, rejectionReason: '' };
+    }
+    return {
+        requesterNotes: text.slice(0, markerIndex).trim(),
+        rejectionReason: text.slice(markerIndex + marker.length).trim()
+    };
+}
+
+function viewStoreRequestDetails(requestId) {
+    const request = (requestRecords || []).find((entry) => Number(entry.requestId) === Number(requestId));
+    if (!request) {
+        showToast('Request details not found', 'warning');
+        return;
+    }
+
+    if (typeof openSharedDetailsModal !== 'function') {
+        showToast('Details modal is unavailable', 'danger');
+        return;
+    }
+
+    const status = (request.status || 'PENDING').toUpperCase();
+    const notesSplit = splitRequestNotes(request.notes);
+    const requestedQty = Number(request.quantityRequested || 0);
+    const approvedQty = Number(request.quantityApproved || 0);
+    const finalQty = status === 'APPROVED' ? approvedQty : requestedQty;
+    const decisionDateLabel = status === 'REJECTED' ? 'Rejected Date' : 'Approved Date';
+    const decisionByLabel = status === 'REJECTED' ? 'Rejected By' : 'Approved By';
+    const decisionBy = request.approverName || 'Department Head';
+    const requesterNotes = notesSplit.requesterNotes || 'No requester note.';
+    const rejectionReason = notesSplit.rejectionReason || '';
+    const statusBadge = getRequestStatusBadge(status);
+
+    const bodyHtml = `
+        <div class="detail-grid">
+            <div class="detail-item">
+                <div class="detail-label">Request ID</div>
+                <div class="detail-value">${request.requestId}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Status</div>
+                <div class="detail-value">${statusBadge}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Requester</div>
+                <div class="detail-value">${escapeHtml(request.requesterName || 'Store Keeper')}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Item</div>
+                <div class="detail-value">${escapeHtml(request.itemName || 'Inventory Item')}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Quantity Requested</div>
+                <div class="detail-value">${requestedQty}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">${status === 'APPROVED' ? 'Quantity Approved' : 'Quantity'}</div>
+                <div class="detail-value">${finalQty}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Request Date</div>
+                <div class="detail-value">${escapeHtml(formatDateTimeValue(request.requestDate))}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">${decisionDateLabel}</div>
+                <div class="detail-value">${escapeHtml(formatDateTimeValue(request.approvedDate))}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">${decisionByLabel}</div>
+                <div class="detail-value">${escapeHtml(decisionBy)}</div>
+            </div>
+            <div class="detail-item" style="grid-column: 1 / -1;">
+                <div class="detail-label">Requester Note</div>
+                <div class="detail-value">${escapeHtml(requesterNotes)}</div>
+            </div>
+            ${status === 'REJECTED'
+                ? `
+            <div class="detail-item" style="grid-column: 1 / -1;">
+                <div class="detail-label">Rejection Reason</div>
+                <div class="detail-value">${escapeHtml(rejectionReason || 'No rejection reason provided.')}</div>
+            </div>
+            `
+                : ''}
+        </div>
+    `;
+
+    openSharedDetailsModal('Request Details', 'fa-file-lines', bodyHtml);
 }
 
 function getRequestStatusBadge(status) {
@@ -1669,24 +1824,16 @@ function exportRequestInvoice(requestId, treatAsApproved = false) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'pt', format: 'a4' });
     const left = 48;
-    let y = 52;
     const quantity = request.quantityApproved || request.quantityRequested || 0;
     const generatedAt = new Date();
     const approver = sessionStorage.getItem('userName') || 'Department Head';
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.text('FoodFlow Request Invoice', left, y);
-    y += 24;
+    let y = drawFoodFlowReportHeader(doc, 'Request Invoice', generatedAt, approver) + 12;
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.text(`Invoice No: FF-REQ-${request.requestId}-${generatedAt.toISOString().slice(0, 10)}`, left, y);
     y += 14;
-    doc.text(`Generated On: ${generatedAt.toLocaleString()}`, left, y);
-    y += 14;
-    doc.text(`Approved By: ${approver}`, left, y);
-    y += 22;
+    y += 10;
 
     doc.setFont('helvetica', 'bold');
     doc.text('Request Details', left, y);
@@ -1724,6 +1871,142 @@ function exportRequestInvoice(requestId, treatAsApproved = false) {
     showToast('Invoice generated for approved request', 'success');
 }
 
+function parseCssColorToRgb(colorValue, fallback) {
+    const value = String(colorValue || '').trim();
+    if (!value) {
+        return fallback;
+    }
+
+    const hexMatch = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if (hexMatch) {
+        const hex = hexMatch[1];
+        if (hex.length === 3) {
+            return [
+                parseInt(hex[0] + hex[0], 16),
+                parseInt(hex[1] + hex[1], 16),
+                parseInt(hex[2] + hex[2], 16)
+            ];
+        }
+        return [
+            parseInt(hex.slice(0, 2), 16),
+            parseInt(hex.slice(2, 4), 16),
+            parseInt(hex.slice(4, 6), 16)
+        ];
+    }
+
+    const rgbMatch = value.match(/^rgba?\(([^)]+)\)$/i);
+    if (rgbMatch) {
+        const parts = rgbMatch[1]
+            .split(',')
+            .map((part) => parseFloat(part.trim()))
+            .filter((part) => !Number.isNaN(part));
+        if (parts.length >= 3) {
+            return [
+                Math.max(0, Math.min(255, Math.round(parts[0]))),
+                Math.max(0, Math.min(255, Math.round(parts[1]))),
+                Math.max(0, Math.min(255, Math.round(parts[2])))
+            ];
+        }
+    }
+
+    return fallback;
+}
+
+function drawGradientCircleFill(doc, centerX, centerY, radius, startRgb, endRgb) {
+    const steps = 60;
+    const width = (radius * 2) / steps;
+
+    for (let i = 0; i < steps; i += 1) {
+        const t = i / (steps - 1);
+        const color = [
+            Math.round(startRgb[0] + ((endRgb[0] - startRgb[0]) * t)),
+            Math.round(startRgb[1] + ((endRgb[1] - startRgb[1]) * t)),
+            Math.round(startRgb[2] + ((endRgb[2] - startRgb[2]) * t))
+        ];
+
+        const x = centerX - radius + ((i + 0.5) * width);
+        const distanceFromCenter = Math.abs(x - centerX);
+        const halfHeight = Math.sqrt(Math.max(0, (radius * radius) - (distanceFromCenter * distanceFromCenter)));
+        const yTop = centerY - halfHeight;
+        const yBottom = centerY + halfHeight;
+
+        doc.setDrawColor(color[0], color[1], color[2]);
+        doc.setLineWidth(Math.max(1, width + 0.2));
+        doc.line(x, yTop, x, yBottom);
+    }
+}
+
+function drawFoodFlowReportHeader(doc, title, generatedAt, generatedBy) {
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const left = 36;
+    const right = pageWidth - 36;
+    const logoSize = 30;
+    const logoCenterX = left + (logoSize / 2);
+    const logoCenterY = 49;
+    const accentGreen = parseCssColorToRgb(getCssVariable('--accent-green', '#2f7d35'), [47, 125, 53]);
+    const accentRed = parseCssColorToRgb(getCssVariable('--accent-red', '#b3261e'), [179, 38, 30]);
+    drawGradientCircleFill(doc, logoCenterX, logoCenterY, logoSize / 2, accentGreen, accentRed);
+
+    // Draw a simple fork + knife mark to match the login/landing logo style.
+    doc.setTextColor(255, 255, 255);
+    doc.setDrawColor(255, 255, 255);
+    const forkX = logoCenterX - 4;
+    const forkTop = logoCenterY - 8;
+    const forkMid = logoCenterY - 2;
+    const forkBottom = logoCenterY + 8;
+    doc.setLineWidth(1.3);
+    doc.line(forkX - 2.2, forkTop, forkX - 2.2, forkMid);
+    doc.line(forkX, forkTop, forkX, forkMid);
+    doc.line(forkX + 2.2, forkTop, forkX + 2.2, forkMid);
+    doc.line(forkX - 2.6, forkMid, forkX + 2.6, forkMid);
+    doc.line(forkX, forkMid, forkX, forkBottom);
+
+    const knifeX = logoCenterX + 5;
+    doc.setLineWidth(2.1);
+    doc.line(knifeX, logoCenterY - 8, knifeX, logoCenterY + 8);
+    doc.setLineWidth(1.2);
+    doc.line(knifeX, logoCenterY - 8, knifeX + 2.4, logoCenterY - 5.5);
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('FoodFlow', left + logoSize + 10, 48);
+    doc.setFontSize(12);
+    doc.text(title, left + logoSize + 10, 64);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(`Generated on: ${generatedAt.toLocaleString()}`, right, 48, { align: 'right' });
+    doc.text(`Generated by: ${generatedBy}`, right, 62, { align: 'right' });
+
+    doc.setDrawColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+    doc.setLineWidth(1);
+    doc.line(left, 78, right, 78);
+    doc.setDrawColor(180, 180, 180);
+    doc.setLineWidth(0.5);
+
+    return 90;
+}
+
+function drawTableHeaderRow(doc, headers, columnWidths, x, y, rowHeight) {
+    const headerBg = [31, 106, 42];
+    let cellX = x;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+
+    headers.forEach((header, index) => {
+        const width = columnWidths[index];
+        doc.setFillColor(headerBg[0], headerBg[1], headerBg[2]);
+        doc.rect(cellX, y, width, rowHeight, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text(String(header || ''), cellX + 6, y + 13);
+        cellX += width;
+    });
+
+    doc.setTextColor(0, 0, 0);
+    return y + rowHeight;
+}
+
 function exportRowsToPdf(title, headers, rows, filename) {
     if (!window.jspdf || !window.jspdf.jsPDF) {
         showToast('PDF export library did not load. Refresh and try again.', 'danger');
@@ -1739,46 +2022,62 @@ function exportRowsToPdf(title, headers, rows, filename) {
     const left = 36;
     const right = pageWidth - 36;
     const bottom = pageHeight - 44;
-    const lineHeight = 14;
-    let y = 42;
+    const tableWidth = right - left;
+    const safeHeaders = Array.isArray(headers) ? headers : [];
+    const safeRows = Array.isArray(rows) ? rows : [];
+    const columnCount = Math.max(1, safeHeaders.length);
+    const columnWidths = Array(columnCount).fill(tableWidth / columnCount);
+    const headerRowHeight = 20;
+    const rowPaddingY = 6;
+    const rowLineHeight = 11;
+    const minRowHeight = 18;
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(15);
-    doc.text(`FoodFlow - ${title}`, left, y);
-    y += 20;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.text(`Generated on: ${generatedAt.toLocaleString()}`, left, y);
-    y += 12;
-    doc.text(`Generated by: ${generatedBy}`, left, y);
-    y += 14;
-    doc.line(left, y, right, y);
-    y += 14;
+    let y = drawFoodFlowReportHeader(doc, title, generatedAt, generatedBy);
+    y = drawTableHeaderRow(doc, safeHeaders, columnWidths, left, y, headerRowHeight);
 
-    const headerLine = headers.join(' | ');
-    doc.setFont('helvetica', 'bold');
-    const wrappedHeader = doc.splitTextToSize(headerLine, right - left);
-    wrappedHeader.forEach((line) => {
-        doc.text(line, left, y);
-        y += lineHeight;
-    });
-    doc.setFont('helvetica', 'normal');
-
-    if (!rows || rows.length === 0) {
-        doc.text('No rows available for this report.', left, y + 2);
+    if (safeRows.length === 0) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.rect(left, y, tableWidth, 24);
+        doc.text('No rows available for this report.', left + 6, y + 16);
     } else {
-        rows.forEach((row, index) => {
-            const line = `${index + 1}. ${row.map((cell) => String(cell ?? '')).join(' | ')}`;
-            const wrapped = doc.splitTextToSize(line, right - left);
-            const blockHeight = wrapped.length * lineHeight + 2;
-            if (y + blockHeight > bottom) {
-                doc.addPage();
-                y = 42;
+        safeRows.forEach((row, rowIndex) => {
+            const normalizedRow = Array.isArray(row) ? row : [];
+            const wrappedCells = [];
+            let rowHeight = minRowHeight;
+
+            for (let col = 0; col < columnCount; col += 1) {
+                const rawValue = normalizedRow[col];
+                const text = String(rawValue == null ? '' : rawValue);
+                const wrapped = doc.splitTextToSize(text, columnWidths[col] - 10);
+                const cellHeight = Math.max(minRowHeight, (wrapped.length * rowLineHeight) + rowPaddingY + 2);
+                wrappedCells.push(wrapped);
+                if (cellHeight > rowHeight) {
+                    rowHeight = cellHeight;
+                }
             }
-            wrapped.forEach((part) => {
-                doc.text(part, left, y);
-                y += lineHeight;
-            });
+
+            if (y + rowHeight > bottom) {
+                doc.addPage();
+                y = drawFoodFlowReportHeader(doc, `${title} (Continued)`, generatedAt, generatedBy);
+                y = drawTableHeaderRow(doc, safeHeaders, columnWidths, left, y, headerRowHeight);
+            }
+
+            const stripe = rowIndex % 2 === 0 ? 248 : 255;
+            let cellX = left;
+            for (let col = 0; col < columnCount; col += 1) {
+                doc.setFillColor(stripe, stripe, stripe);
+                doc.rect(cellX, y, columnWidths[col], rowHeight, 'F');
+                doc.rect(cellX, y, columnWidths[col], rowHeight);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                wrappedCells[col].forEach((line, lineIndex) => {
+                    doc.text(String(line), cellX + 5, y + rowPaddingY + 8 + (lineIndex * rowLineHeight));
+                });
+                cellX += columnWidths[col];
+            }
+
+            y += rowHeight;
         });
     }
 
@@ -2106,20 +2405,7 @@ function exportSystemLogsPdf() {
     const right = pageWidth - 40;
     const bottom = pageHeight - 48;
     const lineHeight = 16;
-    let y = 48;
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.text('FoodFlow - System Activity Log Report', left, y);
-    y += 22;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text(`Generated on: ${generatedAt.toLocaleString()}`, left, y);
-    y += 14;
-    doc.text(`Generated by: ${generatedBy}`, left, y);
-    y += 18;
-    doc.line(left, y, right, y);
-    y += 18;
+    let y = drawFoodFlowReportHeader(doc, 'System Activity Log Report', generatedAt, generatedBy) + 14;
 
     if (entries.length === 0) {
         doc.setFontSize(11);
@@ -2144,7 +2430,7 @@ function exportSystemLogsPdf() {
             const blockHeight = wrappedLines.length * lineHeight + 8;
             if (y + blockHeight > bottom) {
                 doc.addPage();
-                y = 48;
+                y = drawFoodFlowReportHeader(doc, 'System Activity Log Report (Continued)', generatedAt, generatedBy) + 14;
             }
 
             doc.setFont('helvetica', 'normal');

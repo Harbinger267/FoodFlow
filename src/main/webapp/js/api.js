@@ -118,6 +118,25 @@ const ItemsAPI = {
             console.error('Error updating item:', error);
             throw error;
         }
+    },
+
+    async replenish(itemId, quantity) {
+        const params = new URLSearchParams();
+        params.append('action', 'replenish');
+        params.append('itemId', itemId);
+        params.append('quantity', quantity);
+
+        try {
+            const response = await fetch(ENDPOINTS.ITEMS, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: params
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error replenishing item:', error);
+            throw error;
+        }
     }
 };
 
@@ -312,10 +331,13 @@ const RequestsAPI = {
         });
     },
 
-    async reject(requestId) {
+    async reject(requestId, rejectionNote) {
         const params = new URLSearchParams();
         params.append('action', 'reject');
         params.append('requestId', requestId);
+        if (typeof rejectionNote === 'string') {
+            params.append('rejectionNote', rejectionNote);
+        }
 
         return fetchAPI(ENDPOINTS.REQUESTS, {
             method: 'POST',

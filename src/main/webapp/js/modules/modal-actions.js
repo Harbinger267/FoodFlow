@@ -3,6 +3,12 @@
 function initModals() {
     // Add Item Modal
     document.getElementById('saveItemBtn').addEventListener('click', saveNewItem);
+
+    // Replenish Stock Modal
+    const saveReplenishBtn = document.getElementById('saveReplenishBtn');
+    if (saveReplenishBtn && typeof saveReplenishItem === 'function') {
+        saveReplenishBtn.addEventListener('click', saveReplenishItem);
+    }
     
     // Add Damage Modal
     document.getElementById('saveDmgBtn').addEventListener('click', saveDamageReport);

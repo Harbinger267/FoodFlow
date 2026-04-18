@@ -162,7 +162,7 @@ body.light-mode::before {
 .auth-logo {
     width: 70px;
     height: 70px;
-    background: linear-gradient(135deg, var(--purple-500), var(--purple-400));
+    background: linear-gradient(135deg, var(--accent-green), var(--accent-red));
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -352,6 +352,23 @@ body.light-mode .btn-primary:hover {
     margin-top: 24px;
     padding-top: 24px;
     border-top: 1px solid var(--border-color);
+}
+
+.auth-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    color: var(--purple-300);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.auth-back-link:hover {
+    color: var(--purple-200);
+    text-decoration: underline;
 }
 
 .auth-link {

@@ -135,6 +135,30 @@ public class ItemAPI extends HttpServlet {
                 jsonResponse.addProperty("success", success);
                 jsonResponse.addProperty("message", success ? "Item updated" : "Update failed");
                 response.getWriter().write(gson.toJson(jsonResponse));
+
+            } else if ("replenish".equals(action)) {
+                int itemId = Integer.parseInt(request.getParameter("itemId"));
+                double quantity = parseDouble(request.getParameter("quantity"));
+
+                if (itemId <= 0) {
+                    sendError(response, "Valid item is required", 400);
+                    return;
+                }
+                if (quantity <= 0) {
+                    sendError(response, "Quantity must be greater than 0", 400);
+                    return;
+                }
+
+                boolean success = itemDAO.replenishStock(itemId, quantity);
+                Item updatedItem = success ? itemDAO.getItemById(itemId) : null;
+
+                JsonObject jsonResponse = new JsonObject();
+                jsonResponse.addProperty("success", success);
+                jsonResponse.addProperty("message", success ? "Stock replenished successfully" : "Failed to replenish stock");
+                if (updatedItem != null) {
+                    jsonResponse.add("item", gson.toJsonTree(updatedItem));
+                }
+                response.getWriter().write(gson.toJson(jsonResponse));
                 
             } else if ("delete".equals(action)) {
                 JsonObject jsonResponse = new JsonObject();

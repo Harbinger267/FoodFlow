@@ -627,6 +627,39 @@
     </div>
   </div>
 
+  <!-- Replenish Stock Modal -->
+  <div class="modal fade" id="replenishItemModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content modal-dark">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fa-solid fa-box-open"></i> Replenish Stock</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="replenishItemId"/>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Item</label>
+              <input type="text" class="form-control form-control-dark" id="replenishItemName" readonly/>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Current Stock</label>
+              <input type="text" class="form-control form-control-dark" id="replenishCurrentStock" readonly/>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Quantity To Add *</label>
+              <input type="number" class="form-control form-control-dark" id="replenishQty" min="1" step="0.01" placeholder="1"/>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary-action" id="saveReplenishBtn">Replenish</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Report Damage Modal -->
   <div class="modal fade" id="addDamagedModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -785,6 +818,51 @@
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body" id="viewItemBody"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Request Rejection Modal -->
+  <div class="modal fade" id="rejectRequestModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content modal-dark">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fa-solid fa-xmark"></i> Reject Request</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="rejectRequestId"/>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Request</label>
+              <input type="text" class="form-control form-control-dark" id="rejectRequestSummary" readonly/>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Reason For Rejection (Optional)</label>
+              <textarea class="form-control form-control-dark" id="rejectRequestNote" rows="4" placeholder="Add context for why this request is being rejected"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger-action" id="saveRejectRequestBtn">Reject Request</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shared Details Modal (Requests, Damage, Usage) -->
+  <div class="modal fade" id="viewSharedDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content modal-dark">
+        <div class="modal-header">
+          <h5 class="modal-title" id="viewSharedDetailsTitle"><i class="fa-solid fa-eye"></i> Details</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="viewSharedDetailsBody"></div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
         </div>

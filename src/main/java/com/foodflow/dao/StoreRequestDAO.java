@@ -46,15 +46,26 @@ public class StoreRequestDAO {
     }
 
     public boolean updateRequestStatus(int requestId, int approverId, String status) {
+        return updateRequestStatus(requestId, approverId, status, null);
+    }
+
+    public boolean updateRequestStatus(int requestId, int approverId, String status, String rejectionNote) {
         String requestSql = "UPDATE store_requests " +
                 "SET status = ?, approver_id = ?, approved_date = CURRENT_TIMESTAMP " +
                 "WHERE request_id = ? AND status = 'PENDING'";
         String detailSql = "UPDATE request_details " +
                 "SET quantity_approved = CASE WHEN ? = 'APPROVED' THEN quantity_requested ELSE 0 END " +
                 "WHERE request_id = ?";
+        String noteSql = "UPDATE store_requests " +
+                "SET notes = CASE " +
+                "  WHEN notes IS NULL OR TRIM(notes) = '' THEN ? " +
+                "  ELSE CONCAT(notes, '\\n\\n', ?) " +
+                "END " +
+                "WHERE request_id = ?";
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement requestStmt = conn.prepareStatement(requestSql);
-             PreparedStatement detailStmt = conn.prepareStatement(detailSql)) {
+             PreparedStatement detailStmt = conn.prepareStatement(detailSql);
+             PreparedStatement noteStmt = conn.prepareStatement(noteSql)) {
             String normalized = status == null ? "PENDING" : status.toUpperCase();
             conn.setAutoCommit(false);
 
@@ -70,6 +81,15 @@ public class StoreRequestDAO {
             detailStmt.setString(1, normalized);
             detailStmt.setInt(2, requestId);
             detailStmt.executeUpdate();
+
+            String trimmedNote = rejectionNote == null ? "" : rejectionNote.trim();
+            if ("REJECTED".equals(normalized) && !trimmedNote.isEmpty()) {
+                String formattedReason = "Department Rejection Note: " + trimmedNote;
+                noteStmt.setString(1, formattedReason);
+                noteStmt.setString(2, formattedReason);
+                noteStmt.setInt(3, requestId);
+                noteStmt.executeUpdate();
+            }
 
             conn.commit();
             return true;

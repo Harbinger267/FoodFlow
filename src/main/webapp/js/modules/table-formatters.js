@@ -24,8 +24,8 @@ function getActionButtons(item) {
     const canEdit = typeof hasCapability === 'function' && hasCapability('canUpdateInventory');
     const editButton = canEdit
         ? `
-        <button class="btn-action-sm" onclick="editItem(${item.itemId})" title="Edit">
-            <i class="fa-solid fa-pen"></i>
+        <button class="btn-action-sm" onclick="editItem(${item.itemId})" title="Replenish Stock">
+            <i class="fa-solid fa-plus"></i>
         </button>
     `
         : '';

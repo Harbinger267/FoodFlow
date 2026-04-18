@@ -94,6 +94,9 @@
             </form>
 
             <div class="auth-footer">
+                <a href="${pageContext.request.contextPath}/landing.jsp" class="auth-back-link">
+                    <i class="fas fa-arrow-left"></i> Back to Landing Page
+                </a>
                 <p>Accounts are provisioned by the administrator for this case study.</p>
             </div>
         </div>

@@ -87,16 +87,16 @@ body.light-mode .lp-topbar {
 }
 
 .lp-brand-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 1.05rem;
+  font-size: 1rem;
   background: linear-gradient(135deg, var(--accent-green), var(--accent-red));
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2), 0 8px 18px rgba(31, 106, 42, 0.24);
 }
 
 .lp-brand-copy {

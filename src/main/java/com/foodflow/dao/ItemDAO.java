@@ -118,6 +118,23 @@ public class ItemDAO {
         return false;
     }
 
+    public boolean replenishStock(int itemId, double quantityToAdd) {
+        String sql = "UPDATE items " +
+                "SET stock = stock + ?, " +
+                "status = CASE WHEN stock + ? <= 0 THEN 'OUT_OF_STOCK' ELSE 'AVAILABLE' END " +
+                "WHERE item_id = ?";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setDouble(1, quantityToAdd);
+            stmt.setDouble(2, quantityToAdd);
+            stmt.setInt(3, itemId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     private String normalizeStatus(String requestedStatus, double stock) {
         if (stock <= 0) {
             return "OUT_OF_STOCK";

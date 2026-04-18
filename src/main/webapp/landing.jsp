@@ -13,7 +13,7 @@
     <header class="lp-topbar">
         <div class="lp-topbar-inner">
             <a href="<%= request.getContextPath() %>/landing.jsp" class="lp-brand">
-                <span class="lp-brand-icon" aria-hidden="true"><i class="fa-solid fa-warehouse"></i></span>
+                <span class="lp-brand-icon" aria-hidden="true"><i class="fa-solid fa-utensils"></i></span>
                 <span class="lp-brand-copy">
                     <strong>FoodFlow</strong>
                     <small>School Catering Inventory</small>
