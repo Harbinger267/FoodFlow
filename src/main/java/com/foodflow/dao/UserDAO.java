@@ -173,6 +173,21 @@ public class UserDAO {
         return false;
     }
 
+    public boolean updateOwnCredentials(int userId, String username, String hashedPassword) {
+        String sql = "UPDATE users SET name = COALESCE(NULLIF(?, ''), name), "
+                + "password = COALESCE(NULLIF(?, ''), password) WHERE user_id = ?";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, username == null ? "" : username.trim());
+            stmt.setString(2, hashedPassword == null ? "" : hashedPassword);
+            stmt.setInt(3, userId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     public boolean deleteUser(int userId) {
         String sql = "DELETE FROM users WHERE user_id = ?";
         try (Connection conn = DatabaseConfig.getConnection();

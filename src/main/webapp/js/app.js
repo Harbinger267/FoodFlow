@@ -10,6 +10,7 @@ let usageRecords = [];
 let requestRecords = [];
 let adminUsers = [];
 let adminUsersLoadError = '';
+let pendingAdminDeleteUserId = 0;
 let dashboardStats = {};
 let rolePolicy = null;
 let latestActivityEntries = [];
@@ -1225,6 +1226,21 @@ function initRoleActionHandlers() {
         adminSavePasswordResetBtn.addEventListener('click', saveAdminPasswordReset);
     }
 
+    const userBadge = document.getElementById('userBadge');
+    if (userBadge) {
+        userBadge.addEventListener('click', openAccountSettingsModal);
+    }
+
+    const saveAccountSettingsBtn = document.getElementById('saveAccountSettingsBtn');
+    if (saveAccountSettingsBtn) {
+        saveAccountSettingsBtn.addEventListener('click', submitAccountSettingsUpdate);
+    }
+
+    const adminConfirmDeleteUserBtn = document.getElementById('adminConfirmDeleteUserBtn');
+    if (adminConfirmDeleteUserBtn) {
+        adminConfirmDeleteUserBtn.addEventListener('click', confirmAdminUserDelete);
+    }
+
     const exportLogsPdfBtn = document.getElementById('exportLogsPdfBtn');
     if (exportLogsPdfBtn) {
         exportLogsPdfBtn.addEventListener('click', exportSystemLogsPdf);
@@ -2220,7 +2236,96 @@ function handleAdminUsersTableActions(event) {
         return;
     }
     if (deleteBtn) {
-        deleteAdminUser(parseInt(deleteBtn.dataset.adminDelete, 10));
+        openAdminDeleteUserModal(parseInt(deleteBtn.dataset.adminDelete, 10));
+    }
+}
+
+function openAccountSettingsModal() {
+    const usernameInput = document.getElementById('accountUsername');
+    const currentPasswordInput = document.getElementById('accountCurrentPassword');
+    const newPasswordInput = document.getElementById('accountNewPassword');
+    const confirmPasswordInput = document.getElementById('accountConfirmPassword');
+    const modalEl = document.getElementById('accountSettingsModal');
+
+    if (!usernameInput || !currentPasswordInput || !newPasswordInput || !confirmPasswordInput || !modalEl) {
+        showToast('Account settings modal is unavailable on this page', 'danger');
+        return;
+    }
+
+    usernameInput.value = (sessionStorage.getItem('userName') || '').trim();
+    currentPasswordInput.value = '';
+    newPasswordInput.value = '';
+    confirmPasswordInput.value = '';
+
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+async function submitAccountSettingsUpdate() {
+    const usernameInput = document.getElementById('accountUsername');
+    const currentPasswordInput = document.getElementById('accountCurrentPassword');
+    const newPasswordInput = document.getElementById('accountNewPassword');
+    const confirmPasswordInput = document.getElementById('accountConfirmPassword');
+
+    if (!usernameInput || !currentPasswordInput || !newPasswordInput || !confirmPasswordInput) {
+        showToast('Account settings form is unavailable', 'danger');
+        return;
+    }
+
+    const username = (usernameInput.value || '').trim();
+    const currentPassword = currentPasswordInput.value || '';
+    const newPassword = (newPasswordInput.value || '').trim();
+    const confirmNewPassword = (confirmPasswordInput.value || '').trim();
+    const existingUsername = (sessionStorage.getItem('userName') || '').trim();
+
+    if (!username) {
+        showToast('Username is required', 'warning');
+        return;
+    }
+    if (!currentPassword.trim()) {
+        showToast('Current password is required', 'warning');
+        return;
+    }
+    if (newPassword && newPassword !== confirmNewPassword) {
+        showToast('New password and confirm password do not match', 'warning');
+        return;
+    }
+    if (newPassword && newPassword.length < 6) {
+        showToast('New password must be at least 6 characters', 'warning');
+        return;
+    }
+    if (!newPassword && username === existingUsername) {
+        showToast('No account changes detected', 'warning');
+        return;
+    }
+
+    try {
+        const result = await FoodFlowAPI.account.updateCredentials({
+            username,
+            currentPassword,
+            newPassword
+        });
+
+        if (!result || !result.success) {
+            showToast((result && (result.error || result.message)) || 'Could not update account settings', 'danger');
+            return;
+        }
+
+        const updatedUserName = (result.userName || username).trim();
+        sessionStorage.setItem('userName', updatedUserName);
+        if (typeof loadUserInfo === 'function') {
+            loadUserInfo();
+        }
+
+        closeModal('accountSettingsModal');
+        showToast('Account settings updated successfully', 'success');
+        await loadDashboardData();
+        if (hasCapability('canManageUsers')) {
+            await loadAdminUsers();
+        }
+    } catch (error) {
+        console.error('Account settings update failed:', error);
+        showToast('Error updating account settings: ' + error.message, 'danger');
     }
 }
 
@@ -2315,6 +2420,47 @@ async function saveAdminPasswordReset() {
     }
 }
 
+function openAdminDeleteUserModal(userId) {
+    if (!userId || Number.isNaN(userId)) {
+        showToast('Invalid user selected', 'warning');
+        return;
+    }
+
+    const currentUserId = parseInt(sessionStorage.getItem('userId'), 10);
+    if (currentUserId === Number(userId)) {
+        showToast('You cannot delete your own account', 'warning');
+        return;
+    }
+
+    const user = adminUsers.find((entry) => Number(entry.userId) === Number(userId));
+    if (!user) {
+        showToast('User not found', 'warning');
+        return;
+    }
+
+    const summaryEl = document.getElementById('adminDeleteUserSummary');
+    const hiddenIdEl = document.getElementById('adminDeleteUserId');
+    const modalEl = document.getElementById('adminDeleteUserModal');
+
+    if (!summaryEl || !hiddenIdEl || !modalEl) {
+        showToast('Delete confirmation modal is unavailable on this page', 'danger');
+        return;
+    }
+
+    pendingAdminDeleteUserId = Number(userId);
+    hiddenIdEl.value = String(userId);
+    summaryEl.value = `${user.username || user.fullName || `User #${userId}`} (${formatUserRoleLabel(user.role)})`;
+
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+function confirmAdminUserDelete() {
+    const hiddenIdEl = document.getElementById('adminDeleteUserId');
+    const selectedId = pendingAdminDeleteUserId || parseInt((hiddenIdEl || {}).value, 10);
+    deleteAdminUser(selectedId);
+}
+
 async function deleteAdminUser(userId) {
     if (!userId || Number.isNaN(userId)) {
         showToast('Invalid user selected', 'warning');
@@ -2327,14 +2473,11 @@ async function deleteAdminUser(userId) {
         return;
     }
 
-    const confirmed = window.confirm('Delete this user account?');
-    if (!confirmed) {
-        return;
-    }
-
     try {
         const result = await FoodFlowAPI.users.remove(userId);
         if (result && result.success) {
+            pendingAdminDeleteUserId = 0;
+            closeModal('adminDeleteUserModal');
             showToast('User deleted successfully', 'success');
             adminUsersLoadError = '';
             await loadAdminUsers();

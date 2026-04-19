@@ -108,7 +108,7 @@
           <i class="fa-regular fa-calendar"></i>
           <span id="currentDate"></span>
         </div>
-        <div class="date-badge" id="userBadge" style="cursor:pointer;">
+        <div class="date-badge" id="userBadge" style="cursor:pointer;" title="Account settings">
           <i class="fa-solid fa-user-circle"></i>
           <span id="topbarUserName">Loading...</span>
         </div>
@@ -809,6 +809,73 @@
     </div>
   </div>
 
+  <!-- Account Settings Modal -->
+  <div class="modal fade" id="accountSettingsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content modal-dark">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fa-solid fa-user-gear"></i> Account Settings</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Username</label>
+              <input type="text" class="form-control form-control-dark" id="accountUsername" placeholder="Your username"/>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Current Password</label>
+              <input type="password" class="form-control form-control-dark" id="accountCurrentPassword" placeholder="Required to save changes"/>
+            </div>
+            <div class="col-12">
+              <label class="form-label">New Password (Optional)</label>
+              <input type="password" class="form-control form-control-dark" id="accountNewPassword" placeholder="Leave blank to keep current password"/>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Confirm New Password</label>
+              <input type="password" class="form-control form-control-dark" id="accountConfirmPassword" placeholder="Repeat new password"/>
+            </div>
+            <div class="col-12">
+              <small class="text-muted">You can change your username, password, or both.</small>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary-action" id="saveAccountSettingsBtn">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Admin User Confirmation Modal -->
+  <div class="modal fade" id="adminDeleteUserModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content modal-dark">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fa-solid fa-user-xmark"></i> Delete User</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="adminDeleteUserId"/>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">User</label>
+              <input type="text" class="form-control form-control-dark" id="adminDeleteUserSummary" readonly/>
+            </div>
+            <div class="col-12">
+              <small class="text-muted">This action permanently removes the account.</small>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger-action" id="adminConfirmDeleteUserBtn">Delete User</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- View Item Modal -->
   <div class="modal fade" id="viewItemModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -889,7 +956,7 @@
   <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
   
   <!-- FoodFlow Application Scripts -->
-  <script src="js/api.js?v=20260421"></script>
+  <script src="js/api.js?v=20260422"></script>
   <script src="js/modules/user-session.js?v=20260421"></script>
   <script src="js/modules/ui-feedback.js?v=20260421"></script>
   <script src="js/modules/table-formatters.js?v=20260421"></script>
@@ -897,7 +964,7 @@
   <script src="js/modules/view-actions.js?v=20260421"></script>
   <script src="js/modules/dashboard-widgets.js?v=20260421"></script>
   <script src="js/modules/placeholders.js?v=20260421"></script>
-  <script src="js/app.js?v=20260421"></script>
+  <script src="js/app.js?v=20260422"></script>
 </body>
 </html>
 

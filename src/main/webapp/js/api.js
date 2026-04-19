@@ -15,6 +15,7 @@ const ENDPOINTS = {
     USAGE: `${CONTEXT_ROOT}/api/usage`,
     DASHBOARD: `${CONTEXT_ROOT}/api/dashboard`,
     REQUESTS: `${CONTEXT_ROOT}/api/requests`,
+    ACCOUNT: `${CONTEXT_ROOT}/api/account`,
     USERS: `${CONTEXT_ROOT}/admin/users`
 };
 
@@ -419,6 +420,32 @@ const UsersAPI = {
     }
 };
 
+/**
+ * Authenticated account API
+ */
+const AccountAPI = {
+    getProfile() {
+        return fetchAPI(ENDPOINTS.ACCOUNT);
+    },
+
+    async updateCredentials(data) {
+        const params = new URLSearchParams();
+        params.append('action', 'updateCredentials');
+        params.append('username', data.username || '');
+        params.append('currentPassword', data.currentPassword || '');
+        params.append('newPassword', data.newPassword || '');
+
+        return fetchAPI(ENDPOINTS.ACCOUNT, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: params
+        });
+    }
+};
+
 // Export all APIs
 window.FoodFlowAPI = {
     items: ItemsAPI,
@@ -427,5 +454,6 @@ window.FoodFlowAPI = {
     dashboard: DashboardAPI,
     requests: RequestsAPI,
     users: UsersAPI,
+    account: AccountAPI,
     fetchAPI
 };
