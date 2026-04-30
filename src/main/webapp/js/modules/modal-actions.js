@@ -15,6 +15,22 @@ function initModals() {
     
     // Add Staff Checkout Modal
     document.getElementById('saveStaffBtn').addEventListener('click', saveStaffCheckout);
+
+    // Return + Damage Disposition Modals
+    const saveReturnBtn = document.getElementById('saveReturnBtn');
+    if (saveReturnBtn && typeof submitReturnFromModal === 'function') {
+        saveReturnBtn.addEventListener('click', submitReturnFromModal);
+    }
+
+    const saveDispositionBtn = document.getElementById('saveDispositionBtn');
+    if (saveDispositionBtn && typeof submitDamageDispositionUpdate === 'function') {
+        saveDispositionBtn.addEventListener('click', submitDamageDispositionUpdate);
+    }
+
+    const saveLostBtn = document.getElementById('saveLostBtn');
+    if (saveLostBtn && typeof submitLostFromModal === 'function') {
+        saveLostBtn.addEventListener('click', submitLostFromModal);
+    }
     
     // Populate dropdowns when modals are shown
     const addItemModal = document.getElementById('addItemModal');
@@ -61,7 +77,7 @@ async function saveNewItem() {
     const itemData = {
         itemName: itemName.trim(),
         category: category,
-        itemType: 'FOOD',
+        itemType: inferItemType(itemName, category),
         unit: unit || 'Pieces',
         description: '',
         quantity: parseFloat(quantity),
@@ -85,6 +101,27 @@ async function saveNewItem() {
         console.error('Error adding item:', error);
         showToast('Error adding item: ' + error.message, 'danger');
     }
+}
+
+function inferItemType(itemName, category) {
+    const normalizedName = String(itemName || '').toLowerCase();
+    const normalizedCategory = String(category || '').toLowerCase();
+
+    if (normalizedCategory.includes('perishable')) {
+        return 'FOOD';
+    }
+
+    const toolKeywords = ['oven', 'fridge', 'freezer', 'mixer', 'burner', 'machine', 'stove'];
+    if (toolKeywords.some((keyword) => normalizedName.includes(keyword))) {
+        return 'TOOL';
+    }
+
+    const utensilKeywords = ['spoon', 'tongs', 'tong', 'plate', 'fork', 'knife', 'cup', 'tray', 'bowl', 'ladle'];
+    if (utensilKeywords.some((keyword) => normalizedName.includes(keyword))) {
+        return 'UTENSIL';
+    }
+
+    return 'FOOD';
 }
 
 /**
@@ -122,7 +159,8 @@ async function saveDamageReport() {
         itemId: parseInt(itemId),
         quantity: parseInt(quantity),
         damageType: damageType,
-        reportedBy: reportedBy || 'Unknown'
+        reportedBy: reportedBy || 'Unknown',
+        disposition: 'DISPOSED'
     };
     
     console.log('Sending to API:', damageData);
@@ -160,7 +198,7 @@ async function saveStaffCheckout() {
         department: document.getElementById('staffDept').value
     };
     
-    if (!usageData.itemId || !usageData.quantity || !usageData.staffName) {
+    if (!usageData.itemId || !usageData.quantity || !usageData.staffName || !usageData.department) {
         showToast('Please fill in all required fields', 'warning');
         return;
     }

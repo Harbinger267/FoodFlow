@@ -423,6 +423,28 @@ body.light-mode .search-wrap input::placeholder { color: #94a3b8; }
   animation: fadeIn 0.35s ease;
 }
 
+#page-dashboard .row.g-4.mb-4 > [class*="col-"] {
+  display: flex;
+}
+
+#page-dashboard .row.g-4.mb-4 .stat-card {
+  width: 100%;
+  min-height: 122px;
+  height: 100%;
+}
+
+#page-dashboard .chart-secondary-col #categoryPieChart {
+  height: 300px  !important;
+}
+
+@media (min-width: 1200px) {
+  body[data-role="STOREKEEPER"] #page-dashboard .chart-primary-col,
+  body[data-role="STOREKEEPER"] #page-dashboard .chart-secondary-col {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+}
+
 /* ========== STAT CARDS ========== */
 .stat-card {
   background: linear-gradient(135deg, var(--navy-850) 0%, var(--navy-800) 100%);
@@ -533,6 +555,60 @@ body.light-mode .search-wrap input::placeholder { color: #94a3b8; }
 .panel-actions {
   display: flex;
   gap: 6px;
+}
+.panel-actions-wrap {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+.panel-filter-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+.panel-select,
+.panel-input {
+  height: 34px;
+  padding: 5px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Atkinson Hyperlegible', sans-serif;
+  background: var(--navy-800);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+.panel-select:hover,
+.panel-input:hover {
+  border-color: var(--navy-400);
+}
+.panel-select:focus,
+.panel-input:focus {
+  outline: none;
+  border-color: var(--navy-400);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+.panel-input::placeholder {
+  color: var(--text-muted);
+}
+.panel-input[type="date"] {
+  min-width: 150px;
+}
+.panel-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin: 0 4px;
+}
+.panel-checkbox-label input[type="checkbox"] {
+  accent-color: var(--navy-400);
 }
 .btn-mini {
   padding: 5px 12px;

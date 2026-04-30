@@ -65,7 +65,10 @@ CREATE TABLE damage_log (
     quantity DOUBLE NOT NULL,
     damage_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     description TEXT,
+    damage_type VARCHAR(100),
+    disposition ENUM('DISPOSED', 'REPLACED', 'UNDER_REPAIR', 'REPAIRED') NOT NULL DEFAULT 'DISPOSED',
     reported_by INT NULL,
+    reported_by_name VARCHAR(100),
     FOREIGN KEY (item_id) REFERENCES items(item_id) ON DELETE CASCADE,
     FOREIGN KEY (reported_by) REFERENCES users(user_id) ON DELETE SET NULL
 );
@@ -97,6 +100,7 @@ CREATE TABLE system_logs (
     user_id INT NULL,
     action_performed VARCHAR(255) NOT NULL,
     timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    archived_at DATETIME NULL,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 );
 

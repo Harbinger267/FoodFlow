@@ -14,6 +14,18 @@ let pendingAdminDeleteUserId = 0;
 let dashboardStats = {};
 let rolePolicy = null;
 let latestActivityEntries = [];
+let selectedTrendRange = '30d';
+let systemLogEntries = [];
+let logsFilterState = {
+    range: '30d',
+    search: '',
+    includeArchived: false,
+    archiveFrom: '',
+    archiveTo: '',
+    page: 1,
+    pageSize: 50,
+    total: 0
+};
 
 // DataTables instances
 let availableTable;
@@ -42,6 +54,8 @@ document.addEventListener('DOMContentLoaded', function() {
     initThemeToggle();
     const userContext = loadUserInfo();
     rolePolicy = (userContext && userContext.policy) ? userContext.policy : getRolePolicy('STOREKEEPER');
+    selectedTrendRange = localStorage.getItem('foodflowTrendRange') || '30d';
+    logsFilterState.range = selectedTrendRange;
     applyRoleBranding();
     applyRoleDashboardPolicy();
     initRoleActionHandlers();
@@ -152,7 +166,7 @@ async function loadAllData() {
 async function loadDashboardData() {
     try {
         console.log('Fetching dashboard stats...');
-        const stats = await FoodFlowAPI.dashboard.getStats();
+        const stats = await FoodFlowAPI.dashboard.getStats(selectedTrendRange);
         syncSessionContextFromServer(stats);
         console.log('Dashboard stats:', stats);
         dashboardStats = stats;
@@ -175,7 +189,7 @@ async function loadDashboardData() {
         
         // Update dashboard alert panel
         if (isAdminDashboard) {
-            const systemAlerts = await FoodFlowAPI.dashboard.getSystemAlerts();
+            const systemAlerts = await FoodFlowAPI.dashboard.getSystemAlerts(selectedTrendRange);
             document.getElementById('lowStockBadge').textContent = systemAlerts.count || 0;
             populateDashboardAlerts(systemAlerts.items || [], 'system');
         } else {
@@ -185,11 +199,16 @@ async function loadDashboardData() {
         }
         
         // Load recent activity
-        const activity = await FoodFlowAPI.dashboard.getRecentActivity();
+        const activity = await FoodFlowAPI.dashboard.getRecentActivity(selectedTrendRange);
         const mergedActivity = mergeRoleActivities(activity.items || []);
         latestActivityEntries = mergedActivity;
         populateRecentActivity(mergedActivity);
-        renderSystemLogTable(mergedActivity);
+        if (isAdminDashboard) {
+            await loadSystemLogs(true);
+        } else {
+            systemLogEntries = [];
+            renderSystemLogTable([]);
+        }
         
         // Update charts
         await updateCharts();
@@ -291,7 +310,14 @@ async function loadItems() {
 async function loadDamageRecords() {
     try {
         console.log('Fetching damage records...');
-        damageRecords = await FoodFlowAPI.damage.getAll();
+        const rows = await FoodFlowAPI.damage.getAll();
+        damageRecords = (rows || []).map((entry) => ({
+            ...entry,
+            disposition: String(entry.disposition || entry.status || 'DISPOSED').toUpperCase(),
+            reportedBy: entry.reportedBy || 'Unknown Staff',
+            recordedByName: entry.recordedByName || 'Store Keeper',
+            damageType: entry.damageType || entry.description || 'Other'
+        }));
         console.log('Loaded', damageRecords.length, 'damage records');
     } catch (error) {
         console.error('Failed to load damage records:', error);
@@ -305,7 +331,13 @@ async function loadDamageRecords() {
 async function loadUsageRecords() {
     try {
         console.log('Fetching usage records...');
-        usageRecords = await FoodFlowAPI.usage.getAll();
+        const rows = await FoodFlowAPI.usage.getAll();
+        usageRecords = (rows || []).map((entry) => ({
+            ...entry,
+            status: String(entry.status || 'ISSUED').toUpperCase(),
+            issuedTo: entry.issuedTo || 'Internal Department',
+            recordedByName: entry.recordedByName || entry.itemUserName || 'Store Keeper'
+        }));
         console.log('Loaded', usageRecords.length, 'usage records');
     } catch (error) {
         console.error('Failed to load usage records:', error);
@@ -407,9 +439,9 @@ function initializeDataTables() {
         data: damageRecords.map(damage => [
             damage.damageId,
             damage.itemName || 'Item #' + damage.itemId,
-            damage.description || damage.damageType || 'Unknown',
+            damage.damageType || damage.description || 'Unknown',
             damage.quantity,
-            damage.status || 'PENDING',
+            getDamageDispositionBadge(damage.disposition || damage.status || 'DISPOSED'),
             getDamageActionButtons(damage)
         ]),
         order: [[0, 'desc']],
@@ -454,10 +486,10 @@ function initializeDataTables() {
     staffTable = $('#staffTable').DataTable({
         data: usageRecords.map(usage => [
             usage.usageId,
-            usage.itemUserName || usage.issuedTo || 'Staff',
+            usage.issuedTo || usage.itemUserName || 'Staff',
             usage.itemName || 'Item #' + usage.itemId,
             usage.quantity,
-            usage.status || 'ISSUED',
+            getUsageStatusBadge(usage.status || 'ISSUED'),
             getUsageActionButtons(usage)
         ]),
         order: [[0, 'desc']],
@@ -474,7 +506,7 @@ function initializeDataTables() {
  */
 async function updateCharts() {
     try {
-        const chartData = await FoodFlowAPI.dashboard.getChartData();
+        const chartData = await FoodFlowAPI.dashboard.getChartData(selectedTrendRange);
         const isAdminDashboard = hasCapability('canViewSystemLogs');
         const textColor = getCssVariable('--text-primary', '#1f2937');
         const gridColor = getCssVariable('--border-color', 'rgba(31, 106, 42, 0.18)');
@@ -490,16 +522,17 @@ async function updateCharts() {
         const ctx1 = document.getElementById('stockTrendChart').getContext('2d');
         const trendLabels = isAdminDashboard
             ? (chartData.systemActivityLabels || getRecentDayLabels(7))
-            : ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'];
+            : (chartData.trendLabels || getRecentDayLabels(7));
         const trendData = isAdminDashboard
             ? (chartData.systemActivityTrend || [0, 0, 0, 0, 0, 0, 0])
-            : (chartData.stockTrend || [120, 132, 101, 134, 90, 130, 145]);
+            : (chartData.stockTrend || [0, 0, 0, 0, 0, 0, 0]);
+        const trendSeriesLabel = chartData.trendSeriesLabel || (isAdminDashboard ? 'System Events' : 'Net Inventory Movements');
         stockTrendChart = new Chart(ctx1, {
             type: 'line',
             data: {
                 labels: trendLabels,
                 datasets: [{
-                    label: isAdminDashboard ? 'System Events' : 'Stock Level',
+                    label: trendSeriesLabel,
                     data: trendData,
                     borderColor: primaryColor,
                     backgroundColor: isAdminDashboard ? 'rgba(47, 125, 53, 0.14)' : 'rgba(59, 130, 246, 0.1)',
@@ -559,7 +592,7 @@ async function updateCharts() {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         position: 'bottom',
@@ -571,6 +604,8 @@ async function updateCharts() {
                 }
             }
         });
+
+        syncDashboardRangeControls();
         
     } catch (error) {
         console.error('Error updating charts:', error);
@@ -704,6 +739,10 @@ function showPage(pageName) {
 
         if (pageName === 'reports') {
             renderReportsOverview();
+        }
+
+        if (pageName === 'logs' && hasCapability('canViewSystemLogs')) {
+            loadSystemLogs(false);
         }
     }
 }
@@ -1055,13 +1094,14 @@ function applyRoleStatLabels(stats) {
     const inStockLabel = document.getElementById('statLabelInStock');
     const damagedLabel = document.getElementById('statLabelDamaged');
     const fourthLabel = document.getElementById('statLabelFourth');
+    const rangeLabel = getRangeLabel(selectedTrendRange);
 
     if (totalLabel) totalLabel.textContent = labels.total || 'Total Items';
     if (inStockLabel) inStockLabel.textContent = labels.inStock || 'In Stock';
     if (damagedLabel) damagedLabel.textContent = labels.damaged || 'Damaged Items';
     if (fourthLabel) {
         if (hasCapability('canViewSystemLogs')) {
-            fourthLabel.textContent = labels.fourth || 'System Logs';
+            fourthLabel.textContent = `${labels.fourth || 'System Logs'} (${rangeLabel})`;
         } else if (hasCapability('canApproveRequests')) {
             fourthLabel.textContent = labels.fourth || 'Pending Approvals';
         } else {
@@ -1107,6 +1147,7 @@ function applyRoleBranding() {
 
 function applyDashboardPanelCopy() {
     const isAdminDashboard = hasCapability('canViewSystemLogs');
+    const rangeLabel = getRangeLabel(selectedTrendRange);
 
     const primaryChartTitle = document.getElementById('dashboardPrimaryChartTitle');
     const secondaryChartTitle = document.getElementById('dashboardSecondaryChartTitle');
@@ -1114,8 +1155,8 @@ function applyDashboardPanelCopy() {
 
     if (primaryChartTitle) {
         primaryChartTitle.innerHTML = isAdminDashboard
-            ? '<i id="dashboardPrimaryChartIcon" class="fa-solid fa-chart-line"></i> System Activity (7 Days)'
-            : '<i id="dashboardPrimaryChartIcon" class="fa-solid fa-chart-line"></i> Stock Level Trend';
+            ? `<i id="dashboardPrimaryChartIcon" class="fa-solid fa-chart-line"></i> System Activity (${rangeLabel})`
+            : `<i id="dashboardPrimaryChartIcon" class="fa-solid fa-chart-line"></i> Inventory Movements (${rangeLabel})`;
     }
     if (secondaryChartTitle) {
         secondaryChartTitle.innerHTML = isAdminDashboard
@@ -1244,6 +1285,76 @@ function initRoleActionHandlers() {
     const exportLogsPdfBtn = document.getElementById('exportLogsPdfBtn');
     if (exportLogsPdfBtn) {
         exportLogsPdfBtn.addEventListener('click', exportSystemLogsPdf);
+    }
+
+    const dashboardTrendRange = document.getElementById('dashboardTrendRange');
+    if (dashboardTrendRange) {
+        dashboardTrendRange.value = selectedTrendRange;
+        dashboardTrendRange.addEventListener('change', async () => {
+            selectedTrendRange = dashboardTrendRange.value || '30d';
+            logsFilterState.range = selectedTrendRange;
+            logsFilterState.page = 1;
+            const logsRangeFilter = document.getElementById('logsRangeFilter');
+            if (logsRangeFilter) {
+                logsRangeFilter.value = selectedTrendRange;
+            }
+            localStorage.setItem('foodflowTrendRange', selectedTrendRange);
+            applyRoleStatLabels(dashboardStats || {});
+            applyDashboardPanelCopy();
+            await loadDashboardData();
+        });
+    }
+
+    const logsRangeFilter = document.getElementById('logsRangeFilter');
+    if (logsRangeFilter) {
+        logsRangeFilter.value = logsFilterState.range;
+    }
+    const logsSearchInput = document.getElementById('logsSearchInput');
+    if (logsSearchInput) {
+        logsSearchInput.value = logsFilterState.search;
+        logsSearchInput.addEventListener('keydown', async (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                await applySystemLogFilters();
+            }
+        });
+    }
+    const logsIncludeArchived = document.getElementById('logsIncludeArchived');
+    if (logsIncludeArchived) {
+        logsIncludeArchived.checked = Boolean(logsFilterState.includeArchived);
+    }
+    const logsApplyFilterBtn = document.getElementById('logsApplyFilterBtn');
+    if (logsApplyFilterBtn) {
+        logsApplyFilterBtn.addEventListener('click', applySystemLogFilters);
+    }
+    const logsArchiveBtn = document.getElementById('logsArchiveBtn');
+    if (logsArchiveBtn) {
+        logsArchiveBtn.addEventListener('click', openArchiveLogsModal);
+    }
+    const confirmArchiveLogsBtn = document.getElementById('confirmArchiveLogsBtn');
+    if (confirmArchiveLogsBtn) {
+        confirmArchiveLogsBtn.addEventListener('click', submitArchiveLogs);
+    }
+    const logsPrevPageBtn = document.getElementById('logsPrevPageBtn');
+    if (logsPrevPageBtn) {
+        logsPrevPageBtn.addEventListener('click', async () => {
+            if (logsFilterState.page <= 1) {
+                return;
+            }
+            logsFilterState.page -= 1;
+            await loadSystemLogs(false);
+        });
+    }
+    const logsNextPageBtn = document.getElementById('logsNextPageBtn');
+    if (logsNextPageBtn) {
+        logsNextPageBtn.addEventListener('click', async () => {
+            const pageCount = Math.max(1, Math.ceil((logsFilterState.total || 0) / logsFilterState.pageSize));
+            if (logsFilterState.page >= pageCount) {
+                return;
+            }
+            logsFilterState.page += 1;
+            await loadSystemLogs(false);
+        });
     }
 
     bindClick('exportStockPdfBtn', exportStockReportPdf);
@@ -1684,7 +1795,7 @@ function buildUsageReportRows() {
     return (usageRecords || []).map((entry) => ({
         usageId: entry.usageId,
         itemName: entry.itemName || `Item #${entry.itemId || 'N/A'}`,
-        issuedTo: entry.itemUserName || entry.issuedTo || 'N/A',
+        issuedTo: entry.issuedTo || entry.itemUserName || 'N/A',
         quantity: Number(entry.quantity || 0),
         status: entry.status || 'ISSUED',
         date: entry.date || ''
@@ -2508,14 +2619,152 @@ function formatUserRoleLabel(role) {
     return role;
 }
 
+function syncDashboardRangeControls() {
+    const trendRange = document.getElementById('dashboardTrendRange');
+    if (trendRange && trendRange.value !== selectedTrendRange) {
+        trendRange.value = selectedTrendRange;
+    }
+
+    const logsRange = document.getElementById('logsRangeFilter');
+    if (logsRange && logsRange.value !== logsFilterState.range) {
+        logsRange.value = logsFilterState.range;
+    }
+}
+
+async function applySystemLogFilters() {
+    logsFilterState.page = 1;
+    await loadSystemLogs(false);
+}
+
+async function loadSystemLogs(resetPage = false) {
+    if (!hasCapability('canViewSystemLogs')) {
+        return;
+    }
+
+    const rangeEl = document.getElementById('logsRangeFilter');
+    const searchEl = document.getElementById('logsSearchInput');
+    const includeArchivedEl = document.getElementById('logsIncludeArchived');
+    const archiveFromEl = document.getElementById('logsArchiveFrom');
+    const archiveToEl = document.getElementById('logsArchiveTo');
+
+    logsFilterState.range = (rangeEl && rangeEl.value) ? rangeEl.value : logsFilterState.range;
+    logsFilterState.search = (searchEl && searchEl.value) ? searchEl.value.trim() : '';
+    logsFilterState.includeArchived = Boolean(includeArchivedEl && includeArchivedEl.checked);
+    logsFilterState.archiveFrom = (archiveFromEl && archiveFromEl.value) ? archiveFromEl.value : '';
+    logsFilterState.archiveTo = (archiveToEl && archiveToEl.value) ? archiveToEl.value : '';
+    if (resetPage) {
+        logsFilterState.page = 1;
+    }
+
+    try {
+        const payload = await FoodFlowAPI.dashboard.getSystemLogs({
+            range: logsFilterState.range,
+            search: logsFilterState.search,
+            includeArchived: logsFilterState.includeArchived,
+            page: logsFilterState.page,
+            pageSize: logsFilterState.pageSize,
+            from: logsFilterState.archiveFrom,
+            to: logsFilterState.archiveTo
+        });
+        systemLogEntries = Array.isArray(payload.items) ? payload.items : [];
+        logsFilterState.total = Number(payload.total || 0);
+        renderSystemLogTable(systemLogEntries);
+
+        const summary = document.getElementById('logsSummaryText');
+        if (summary) {
+            const start = logsFilterState.total === 0 ? 0 : ((logsFilterState.page - 1) * logsFilterState.pageSize) + 1;
+            const end = Math.min(logsFilterState.total, logsFilterState.page * logsFilterState.pageSize);
+            const windowLabel = (logsFilterState.archiveFrom || logsFilterState.archiveTo)
+                ? `${logsFilterState.archiveFrom || '...'} to ${logsFilterState.archiveTo || '...'}`
+                : getRangeLabel(logsFilterState.range);
+            summary.textContent = `Showing ${start}-${end} of ${logsFilterState.total} logs (${windowLabel})`;
+        }
+
+        const pageCount = Math.max(1, Math.ceil(logsFilterState.total / logsFilterState.pageSize));
+        const prevBtn = document.getElementById('logsPrevPageBtn');
+        const nextBtn = document.getElementById('logsNextPageBtn');
+        if (prevBtn) {
+            prevBtn.disabled = logsFilterState.page <= 1;
+        }
+        if (nextBtn) {
+            nextBtn.disabled = logsFilterState.page >= pageCount;
+        }
+    } catch (error) {
+        console.error('Failed loading system logs:', error);
+        showToast('Error loading system logs: ' + error.message, 'danger');
+    }
+}
+
+function openArchiveLogsModal() {
+    if (!hasCapability('canViewSystemLogs')) {
+        showToast('Access denied: admin only action', 'danger');
+        return;
+    }
+
+    const fromInput = document.getElementById('logsArchiveFrom');
+    const toInput = document.getElementById('logsArchiveTo');
+    const from = (fromInput && fromInput.value) ? fromInput.value : (logsFilterState.archiveFrom || '');
+    const to = (toInput && toInput.value) ? toInput.value : (logsFilterState.archiveTo || '');
+    const archiveFromValue = document.getElementById('archiveFromValue');
+    const archiveToValue = document.getElementById('archiveToValue');
+    const archiveWindowLabel = document.getElementById('archiveWindowLabel');
+    if (!archiveFromValue || !archiveToValue || !archiveWindowLabel) {
+        showToast('Archive modal is unavailable on this page', 'danger');
+        return;
+    }
+
+    archiveFromValue.value = from;
+    archiveToValue.value = to;
+    const label = (from || to)
+        ? `${from || '...'} to ${to || '...'}`
+        : `${getRangeLabel(logsFilterState.range)} (current filter)`;
+    archiveWindowLabel.value = label;
+
+    const modal = new bootstrap.Modal(document.getElementById('archiveLogsModal'));
+    modal.show();
+}
+
+async function submitArchiveLogs() {
+    const from = ((document.getElementById('archiveFromValue') || {}).value || '').trim();
+    const to = ((document.getElementById('archiveToValue') || {}).value || '').trim();
+    if ((from && !to) || (!from && to)) {
+        showToast('Provide both archive from and to dates', 'warning');
+        return;
+    }
+    if (!from && !to && String(logsFilterState.range || '').toLowerCase() === 'all') {
+        showToast('Select archive dates or choose a bounded range before archiving', 'warning');
+        return;
+    }
+
+    try {
+        const result = await FoodFlowAPI.dashboard.archiveLogs({
+            range: logsFilterState.range,
+            from: from,
+            to: to
+        });
+        if (result && result.success) {
+            closeModal('archiveLogsModal');
+            showToast(result.message || 'Logs archived', 'success');
+            await loadDashboardData();
+            return;
+        }
+        showToast((result && result.message) || 'Failed to archive logs', 'danger');
+    } catch (error) {
+        showToast('Error archiving logs: ' + error.message, 'danger');
+    }
+}
+
 function renderSystemLogTable(activities) {
     const tableBody = document.getElementById('systemLogsTableBody');
     if (!tableBody) return;
     const rows = (activities || []).map((entry) => {
-        const dateText = formatActivityDate(entry.date);
+        const dateText = formatActivityDate(entry.date || entry.timestamp);
+        const archivedBadge = entry.archived
+            ? ' <span class="badge badge-blue">Archived</span>'
+            : '';
         return `
             <tr>
-              <td>${escapeHtml(entry.description || 'Activity recorded')}</td>
+              <td>${escapeHtml(entry.description || 'Activity recorded')}${archivedBadge}</td>
               <td>${escapeHtml(resolveActivityActor(entry))}</td>
               <td>${escapeHtml(dateText)}</td>
             </tr>
@@ -2537,7 +2786,7 @@ function exportSystemLogsPdf() {
         return;
     }
 
-    const entries = Array.isArray(latestActivityEntries) ? latestActivityEntries : [];
+    const entries = Array.isArray(systemLogEntries) ? systemLogEntries : [];
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'pt', format: 'a4' });
     const generatedBy = sessionStorage.getItem('userName') || 'Admin';
@@ -2592,6 +2841,9 @@ function exportSystemLogsPdf() {
 }
 
 function resolveActivityActor(entry) {
+    if (entry && typeof entry.userName === 'string' && entry.userName.trim().length > 0) {
+        return entry.userName.trim();
+    }
     if (entry && typeof entry.actor === 'string' && entry.actor.trim().length > 0) {
         return entry.actor.trim();
     }
@@ -2607,6 +2859,15 @@ function resolveActivityActor(entry) {
     }
 
     return sessionStorage.getItem('userName') || 'System';
+}
+
+function getRangeLabel(rangeValue) {
+    const normalized = String(rangeValue || '').toLowerCase();
+    if (normalized === '7d' || normalized === 'week') return 'Past Week';
+    if (normalized === '30d' || normalized === 'month') return 'Past Month';
+    if (normalized === '365d' || normalized === 'year') return 'Past Year';
+    if (normalized === 'all') return 'All Time';
+    return 'Selected Range';
 }
 
 function formatActivityDate(rawValue) {

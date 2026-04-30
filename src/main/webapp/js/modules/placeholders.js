@@ -103,11 +103,14 @@ function viewDamage(damageId) {
         return;
     }
 
-    const reportedBy = damage.reportedBy || 'Store Keeper';
+    const reportedBy = damage.reportedBy || 'Unknown Staff';
+    const recordedBy = damage.recordedByName || 'Store Keeper';
     const typeOrDescription = damage.damageType || damage.description || 'Unspecified';
     const dateValue = damage.date || damage.reportDate || damage.dateString || '';
-    const status = damage.status || 'RECORDED';
-    const statusBadge = `<span class="badge badge-blue">${escapeHtml(String(status))}</span>`;
+    const disposition = damage.disposition || damage.status || 'DISPOSED';
+    const statusBadge = typeof getDamageDispositionBadge === 'function'
+        ? getDamageDispositionBadge(disposition)
+        : `<span class="badge badge-blue">${escapeHtml(String(disposition))}</span>`;
 
     const bodyHtml = `
         <div class="detail-grid">
@@ -124,12 +127,16 @@ function viewDamage(damageId) {
                 <div class="detail-value">${Number(damage.quantity || 0)}</div>
             </div>
             <div class="detail-item">
-                <div class="detail-label">Status</div>
+                <div class="detail-label">Disposition</div>
                 <div class="detail-value">${statusBadge}</div>
             </div>
             <div class="detail-item">
-                <div class="detail-label">Reported By</div>
+                <div class="detail-label">Damaged By</div>
                 <div class="detail-value">${escapeHtml(reportedBy)}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Recorded By</div>
+                <div class="detail-value">${escapeHtml(recordedBy)}</div>
             </div>
             <div class="detail-item">
                 <div class="detail-label">Reported Date</div>
@@ -156,13 +163,15 @@ function viewUsage(usageId) {
         return;
     }
 
-    const issuedTo = usage.issuedTo || usage.itemUserName || 'Internal Department';
+    const issuedTo = usage.issuedTo || 'Internal Department';
+    const recordedBy = usage.recordedByName || usage.itemUserName || 'Store Keeper';
     const status = usage.status || 'ISSUED';
     const dateValue = usage.date || '';
+    const outstanding = Math.max(0, Number(usage.quantity || 0) - Number(usage.quantityReturned || 0));
 
-    const statusBadge = `
-        <span class="badge badge-blue">${escapeHtml(String(status))}</span>
-    `;
+    const statusBadge = typeof getUsageStatusBadge === 'function'
+        ? getUsageStatusBadge(status)
+        : `<span class="badge badge-blue">${escapeHtml(String(status))}</span>`;
 
     const bodyHtml = `
         <div class="detail-grid">
@@ -175,7 +184,7 @@ function viewUsage(usageId) {
                 <div class="detail-value">${escapeHtml(usage.itemName || `Item #${usage.itemId}`)}</div>
             </div>
             <div class="detail-item">
-                <div class="detail-label">Quantity Issued</div>
+                <div class="detail-label">Quantity Checked Out</div>
                 <div class="detail-value">${Number(usage.quantity || 0)}</div>
             </div>
             <div class="detail-item">
@@ -183,12 +192,16 @@ function viewUsage(usageId) {
                 <div class="detail-value">${Number(usage.quantityReturned || 0)}</div>
             </div>
             <div class="detail-item">
-                <div class="detail-label">Issued To</div>
+                <div class="detail-label">Outstanding Qty</div>
+                <div class="detail-value">${outstanding}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Borrowed/Issued To</div>
                 <div class="detail-value">${escapeHtml(issuedTo)}</div>
             </div>
             <div class="detail-item">
                 <div class="detail-label">Recorded By</div>
-                <div class="detail-value">${escapeHtml(usage.itemUserName || 'Store Keeper')}</div>
+                <div class="detail-value">${escapeHtml(recordedBy)}</div>
             </div>
             <div class="detail-item">
                 <div class="detail-label">Date</div>
@@ -202,5 +215,160 @@ function viewUsage(usageId) {
     `;
 
     openSharedDetailsModal('Issuing Record Details', 'fa-clipboard-user', bodyHtml);
+}
+
+function openReturnModal(usageId) {
+    const usage = (Array.isArray(usageRecords) ? usageRecords : [])
+        .find((entry) => Number(entry.usageId) === Number(usageId));
+    if (!usage) {
+        showToast('Borrow record not found', 'warning');
+        return;
+    }
+
+    const status = String(usage.status || '').toUpperCase();
+    if (!(status === 'BORROWED' || status === 'PARTIALLY_RETURNED')) {
+        showToast('Only active borrow records can be returned', 'warning');
+        return;
+    }
+
+    const outstanding = Math.max(0, Number(usage.quantity || 0) - Number(usage.quantityReturned || 0));
+    if (outstanding <= 0) {
+        showToast('Nothing outstanding to return for this record', 'info');
+        return;
+    }
+
+    document.getElementById('returnUsageId').value = String(usage.usageId);
+    document.getElementById('returnItemLabel').value = usage.itemName || `Item #${usage.itemId}`;
+    document.getElementById('returnBorrowerLabel').value = usage.issuedTo || 'Internal Department';
+    document.getElementById('returnOutstandingQty').value = String(outstanding);
+    document.getElementById('returnQty').value = String(outstanding);
+
+    const modal = new bootstrap.Modal(document.getElementById('recordReturnModal'));
+    modal.show();
+}
+
+async function submitReturnFromModal() {
+    const usageId = parseInt((document.getElementById('returnUsageId') || {}).value, 10);
+    const outstanding = parseFloat((document.getElementById('returnOutstandingQty') || {}).value);
+    const returnQty = parseFloat((document.getElementById('returnQty') || {}).value);
+
+    if (!usageId || Number.isNaN(usageId)) {
+        showToast('Invalid borrow record selected', 'warning');
+        return;
+    }
+    if (!returnQty || Number.isNaN(returnQty) || returnQty <= 0) {
+        showToast('Return quantity must be greater than 0', 'warning');
+        return;
+    }
+    if (returnQty > outstanding) {
+        showToast('Return quantity cannot exceed outstanding quantity', 'warning');
+        return;
+    }
+
+    try {
+        const result = await FoodFlowAPI.usage.recordReturn(usageId, returnQty);
+        if (result && result.success) {
+            closeModal('recordReturnModal');
+            showToast('Return recorded successfully', 'success');
+            await loadAllData();
+            return;
+        }
+        showToast((result && result.message) || 'Failed to record return', 'danger');
+    } catch (error) {
+        showToast('Error recording return: ' + error.message, 'danger');
+    }
+}
+
+function openLostModal(usageId) {
+    const usage = (Array.isArray(usageRecords) ? usageRecords : [])
+        .find((entry) => Number(entry.usageId) === Number(usageId));
+    if (!usage) {
+        showToast('Borrow record not found', 'warning');
+        return;
+    }
+
+    const status = String(usage.status || '').toUpperCase();
+    if (!(status === 'BORROWED' || status === 'PARTIALLY_RETURNED')) {
+        showToast('Only active borrow records can be marked as lost', 'warning');
+        return;
+    }
+
+    const outstanding = Math.max(0, Number(usage.quantity || 0) - Number(usage.quantityReturned || 0));
+    if (outstanding <= 0) {
+        showToast('No outstanding quantity remains to mark as lost', 'warning');
+        return;
+    }
+
+    document.getElementById('lostUsageId').value = String(usage.usageId);
+    document.getElementById('lostItemLabel').value = usage.itemName || `Item #${usage.itemId}`;
+    document.getElementById('lostBorrowerLabel').value = usage.issuedTo || 'Internal Department';
+    document.getElementById('lostOutstandingQty').value = String(outstanding);
+
+    const modal = new bootstrap.Modal(document.getElementById('markLostModal'));
+    modal.show();
+}
+
+async function submitLostFromModal() {
+    const usageId = parseInt((document.getElementById('lostUsageId') || {}).value, 10);
+    if (!usageId || Number.isNaN(usageId)) {
+        showToast('Invalid record selected', 'warning');
+        return;
+    }
+
+    try {
+        const result = await FoodFlowAPI.usage.updateStatus(usageId, 'LOST');
+        if (result && result.success) {
+            closeModal('markLostModal');
+            showToast('Borrow record marked as lost', 'success');
+            await loadAllData();
+            return;
+        }
+        showToast((result && result.message) || 'Failed to mark as lost', 'danger');
+    } catch (error) {
+        showToast('Error updating record: ' + error.message, 'danger');
+    }
+}
+
+function openDamageDispositionModal(damageId) {
+    const damage = (Array.isArray(damageRecords) ? damageRecords : [])
+        .find((entry) => Number(entry.damageId) === Number(damageId));
+    if (!damage) {
+        showToast('Damage record not found', 'warning');
+        return;
+    }
+
+    document.getElementById('dispositionDamageId').value = String(damage.damageId);
+    document.getElementById('dispositionItemLabel').value = damage.itemName || `Item #${damage.itemId}`;
+    document.getElementById('dispositionCurrent').value = String(damage.disposition || damage.status || 'DISPOSED').toUpperCase();
+
+    const modal = new bootstrap.Modal(document.getElementById('damageDispositionModal'));
+    modal.show();
+}
+
+async function submitDamageDispositionUpdate() {
+    const damageId = parseInt((document.getElementById('dispositionDamageId') || {}).value, 10);
+    const disposition = (document.getElementById('dispositionCurrent') || {}).value;
+
+    if (!damageId || Number.isNaN(damageId)) {
+        showToast('Invalid damage record selected', 'warning');
+        return;
+    }
+    if (!disposition) {
+        showToast('Select a disposition before saving', 'warning');
+        return;
+    }
+
+    try {
+        const result = await FoodFlowAPI.damage.updateStatus(damageId, disposition.toUpperCase());
+        if (result && result.success) {
+            closeModal('damageDispositionModal');
+            showToast('Damage disposition updated', 'success');
+            await loadAllData();
+            return;
+        }
+        showToast((result && result.message) || 'Failed to update disposition', 'danger');
+    } catch (error) {
+        showToast('Error updating disposition: ' + error.message, 'danger');
+    }
 }
 

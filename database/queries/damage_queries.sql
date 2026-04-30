@@ -1,8 +1,8 @@
 USE foodflow;
 
 -- CREATE
-INSERT INTO damage_log (item_id, quantity, damage_date, description, reported_by)
-VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?);
+INSERT INTO damage_log (item_id, quantity, damage_date, description, damage_type, disposition, reported_by, reported_by_name)
+VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?);
 
 UPDATE items
 SET stock = stock - ?
@@ -11,40 +11,44 @@ AND stock >= ?;
 
 -- READ
 SELECT dl.damage_id, dl.item_id, i.name AS item_name, i.category, i.item_type, i.unit_of_measure,
-       dl.quantity, dl.damage_date, dl.description, dl.reported_by,
-       COALESCE(u.name, 'N/A') AS reported_by_name,
-       COALESCE(u.role, 'N/A') AS reported_by_role
+       dl.quantity, dl.damage_date, dl.description, dl.damage_type, dl.disposition,
+       dl.reported_by, dl.reported_by_name,
+       COALESCE(u.name, 'N/A') AS recorded_by_name,
+       COALESCE(u.role, 'N/A') AS recorded_by_role
 FROM damage_log dl
 INNER JOIN items i ON dl.item_id = i.item_id
 LEFT JOIN users u ON dl.reported_by = u.user_id
 ORDER BY dl.damage_date DESC;
 
 SELECT dl.damage_id, dl.item_id, i.name AS item_name, i.category, i.item_type, i.unit_of_measure,
-       dl.quantity, dl.damage_date, dl.description, dl.reported_by,
-       COALESCE(u.name, 'N/A') AS reported_by_name,
-       COALESCE(u.email, 'N/A') AS reported_by_email
+       dl.quantity, dl.damage_date, dl.description, dl.damage_type, dl.disposition,
+       dl.reported_by, dl.reported_by_name,
+       COALESCE(u.name, 'N/A') AS recorded_by_name,
+       COALESCE(u.email, 'N/A') AS recorded_by_email
 FROM damage_log dl
 INNER JOIN items i ON dl.item_id = i.item_id
 LEFT JOIN users u ON dl.reported_by = u.user_id
 WHERE dl.damage_id = ?;
 
 SELECT dl.damage_id, dl.item_id, i.name AS item_name, i.category, i.item_type,
-       dl.quantity, dl.damage_date, dl.description,
-       COALESCE(u.name, 'N/A') AS reported_by_name
+       dl.quantity, dl.damage_date, dl.description, dl.damage_type, dl.disposition,
+       dl.reported_by_name,
+       COALESCE(u.name, 'N/A') AS recorded_by_name
 FROM damage_log dl
 INNER JOIN items i ON dl.item_id = i.item_id
 LEFT JOIN users u ON dl.reported_by = u.user_id
 WHERE dl.damage_date BETWEEN ? AND ?
 ORDER BY dl.damage_date DESC;
 
-SELECT dl.damage_id, dl.quantity, dl.damage_date, dl.description,
-       COALESCE(u.name, 'N/A') AS reported_by_name
+SELECT dl.damage_id, dl.quantity, dl.damage_date, dl.description, dl.damage_type, dl.disposition,
+       dl.reported_by_name, COALESCE(u.name, 'N/A') AS recorded_by_name
 FROM damage_log dl
 LEFT JOIN users u ON dl.reported_by = u.user_id
 WHERE dl.item_id = ?
 ORDER BY dl.damage_date DESC;
 
-SELECT dl.damage_id, dl.item_id, i.name AS item_name, dl.quantity, dl.damage_date, dl.description
+SELECT dl.damage_id, dl.item_id, i.name AS item_name, dl.quantity, dl.damage_date, dl.description,
+       dl.damage_type, dl.disposition, dl.reported_by_name
 FROM damage_log dl
 INNER JOIN items i ON dl.item_id = i.item_id
 WHERE dl.reported_by = ?
@@ -52,7 +56,7 @@ ORDER BY dl.damage_date DESC;
 
 -- UPDATE
 UPDATE damage_log
-SET description = ?
+SET description = ?, damage_type = ?, disposition = ?, reported_by_name = ?
 WHERE damage_id = ?;
 
 -- DELETE

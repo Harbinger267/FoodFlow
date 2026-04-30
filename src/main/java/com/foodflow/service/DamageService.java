@@ -9,6 +9,6 @@ public class DamageService {
         if (itemId <= 0 || quantity <= 0 || userId <= 0) {
             return false;
         }
-        return damageDAO.recordDamage(itemId, quantity, reason, userId);
+        return damageDAO.recordDamage(itemId, quantity, reason, userId, null, "DISPOSED");
     }
 }

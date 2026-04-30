@@ -3,12 +3,14 @@ package com.foodflow.api;
 import com.foodflow.config.SecurityConfig;
 import com.foodflow.dao.DamageDAO;
 import com.foodflow.dao.ItemDAO;
+import com.foodflow.dao.SupplyDAO;
 import com.foodflow.dao.StoreRequestDAO;
 import com.foodflow.dao.SystemDAO;
 import com.foodflow.dao.UserDAO;
 import com.foodflow.dao.UsageDAO;
 import com.foodflow.model.Damage;
 import com.foodflow.model.Item;
+import com.foodflow.model.Supply;
 import com.foodflow.model.StoreRequest;
 import com.foodflow.model.SystemLog;
 import com.foodflow.model.Usage;
@@ -39,6 +41,7 @@ public class DashboardAPI extends HttpServlet {
     private final ItemDAO itemDAO = new ItemDAO();
     private final DamageDAO damageDAO = new DamageDAO();
     private final UsageDAO usageDAO = new UsageDAO();
+    private final SupplyDAO supplyDAO = new SupplyDAO();
     private final SystemDAO systemDAO = new SystemDAO();
     private final UserDAO userDAO = new UserDAO();
     private final StoreRequestDAO storeRequestDAO = new StoreRequestDAO();
@@ -59,9 +62,10 @@ public class DashboardAPI extends HttpServlet {
 
         try {
             String action = request.getParameter("action");
+            int rangeDays = resolveRangeDays(request.getParameter("range"), 30);
             
             if ("stats".equals(action)) {
-                JsonObject stats = getDashboardStats(currentUser);
+                JsonObject stats = getDashboardStats(currentUser, rangeDays);
                 response.getWriter().write(gson.toJson(stats));
                 
             } else if ("lowStock".equals(action)) {
@@ -90,27 +94,34 @@ public class DashboardAPI extends HttpServlet {
                 response.getWriter().write(gson.toJson(responseObj));
                 
             } else if ("systemAlerts".equals(action)) {
-                JsonObject alerts = getAdminSystemAlerts(currentUser);
+                JsonObject alerts = getAdminSystemAlerts(currentUser, rangeDays);
                 response.getWriter().write(gson.toJson(alerts));
                 
             } else if ("recentActivity".equals(action)) {
-                JsonObject activity = getRecentActivity(currentUser);
+                JsonObject activity = getRecentActivity(currentUser, rangeDays);
                 response.getWriter().write(gson.toJson(activity));
                 
             } else if ("charts".equals(action)) {
-                JsonObject chartData = getChartData(currentUser);
+                JsonObject chartData = getChartData(currentUser, rangeDays);
                 response.getWriter().write(gson.toJson(chartData));
+            } else if ("systemLogs".equals(action)) {
+                if (!SecurityConfig.isAdmin(currentUser)) {
+                    sendError(response, "Access denied: admin only action", 403);
+                    return;
+                }
+                JsonObject logs = getSystemLogs(request);
+                response.getWriter().write(gson.toJson(logs));
                 
             } else {
                 JsonObject dashboardData = new JsonObject();
-                dashboardData.add("stats", getDashboardStats(currentUser));
+                dashboardData.add("stats", getDashboardStats(currentUser, rangeDays));
                 if (SecurityConfig.isAdmin(currentUser)) {
-                    dashboardData.add("systemAlerts", getAdminSystemAlerts(currentUser));
+                    dashboardData.add("systemAlerts", getAdminSystemAlerts(currentUser, rangeDays));
                 } else {
                     dashboardData.add("lowStock", getLowStockData());
                 }
-                dashboardData.add("recentActivity", getRecentActivity(currentUser));
-                dashboardData.add("charts", getChartData(currentUser));
+                dashboardData.add("recentActivity", getRecentActivity(currentUser, rangeDays));
+                dashboardData.add("charts", getChartData(currentUser, rangeDays));
                 response.getWriter().write(gson.toJson(dashboardData));
             }
             
@@ -119,9 +130,9 @@ public class DashboardAPI extends HttpServlet {
         }
     }
 
-    private JsonObject getDashboardStats(User user) throws IOException {
+    private JsonObject getDashboardStats(User user, int rangeDays) throws IOException {
         if (SecurityConfig.isAdmin(user)) {
-            return getAdminDashboardStats(user);
+            return getAdminDashboardStats(user, rangeDays);
         }
 
         JsonObject stats = new JsonObject();
@@ -150,7 +161,7 @@ public class DashboardAPI extends HttpServlet {
         int pendingRequests = SecurityConfig.canCreateRequests(user)
                 ? storeRequestDAO.countPendingRequestsForRequester(user.getUserId())
                 : storeRequestDAO.countPendingRequests();
-        int systemLogCount = systemDAO.getRecentLogs().size();
+        int systemLogCount = systemDAO.countLogsSince(resolveRangeStart(clampRangeDays(rangeDays)), false);
         
         stats.addProperty("totalItems", totalItems);
         stats.addProperty("inStock", inStock);
@@ -164,7 +175,7 @@ public class DashboardAPI extends HttpServlet {
         return stats;
     }
 
-    private JsonObject getAdminDashboardStats(User user) {
+    private JsonObject getAdminDashboardStats(User user, int rangeDays) {
         JsonObject stats = new JsonObject();
 
         List<User> users = userDAO.getAllUsers();
@@ -180,12 +191,14 @@ public class DashboardAPI extends HttpServlet {
             }
         }
 
-        int systemLogCount = systemDAO.getRecentLogs().size();
+        int safeRangeDays = clampRangeDays(rangeDays);
+        int systemLogCount = systemDAO.countLogsSince(resolveRangeStart(safeRangeDays), false);
 
         stats.addProperty("totalUsers", totalUsers);
         stats.addProperty("activeUsers", activeUsers);
         stats.addProperty("adminUsers", adminUsers);
         stats.addProperty("systemLogCount", systemLogCount);
+        stats.addProperty("systemLogRangeDays", safeRangeDays <= 0 ? 0 : safeRangeDays);
         appendSessionUserContext(stats, user);
         return stats;
     }
@@ -210,7 +223,7 @@ public class DashboardAPI extends HttpServlet {
         return lowStockItems;
     }
 
-    private JsonObject getRecentActivity(User user) {
+    private JsonObject getRecentActivity(User user, int rangeDays) {
         JsonObject activity = new JsonObject();
         JsonArray activities = new JsonArray();
         
@@ -218,10 +231,9 @@ public class DashboardAPI extends HttpServlet {
             appendRoleBlueprintActivities(activities, user);
 
             if (SecurityConfig.isAdmin(user)) {
-                List<SystemLog> logs = systemDAO.getRecentLogs();
-                int count = 0;
+                LocalDateTime rangeStart = resolveRangeStart(clampRangeDays(rangeDays));
+                List<SystemLog> logs = systemDAO.getLogs(rangeStart, null, null, 5, 0, false);
                 for (SystemLog log : logs) {
-                    if (count >= 5) break;
                     addActivity(
                             activities,
                             "system",
@@ -230,7 +242,6 @@ public class DashboardAPI extends HttpServlet {
                             log.getTimestamp() == null ? nowIso() : log.getTimestamp().format(DATE_FORMATTER),
                             safe(log.getUserName())
                     );
-                    count++;
                 }
             } else if (SecurityConfig.isDepartmentHead(user)) {
                 List<StoreRequest> pending = storeRequestDAO.getPendingRequests();
@@ -295,24 +306,59 @@ public class DashboardAPI extends HttpServlet {
         return activity;
     }
 
-    private JsonObject getChartData(User user) {
+    private JsonObject getChartData(User user, int rangeDays) {
         if (SecurityConfig.isAdmin(user)) {
-            return getAdminChartData();
+            return getAdminChartData(rangeDays);
         }
 
         JsonObject chartData = new JsonObject();
         
         try {
-            // Stock trend data (last 7 days - mock data for now)
-            JsonArray stockTrend = new JsonArray();
-            stockTrend.add(120);
-            stockTrend.add(132);
-            stockTrend.add(101);
-            stockTrend.add(134);
-            stockTrend.add(90);
-            stockTrend.add(130);
-            stockTrend.add(145);
-            chartData.add("stockTrend", stockTrend);
+            int safeRangeDays = clampRangeDays(rangeDays);
+            Map<LocalDate, Double> movementByDay = new LinkedHashMap<>();
+            if (safeRangeDays <= 0) {
+                safeRangeDays = 30;
+            }
+            for (int i = safeRangeDays - 1; i >= 0; i--) {
+                LocalDate day = LocalDate.now().minusDays(i);
+                movementByDay.put(day, 0d);
+            }
+
+            List<Supply> supplies = supplyDAO.getAllSupplies();
+            for (Supply supply : supplies) {
+                if (supply.getDate() != null && movementByDay.containsKey(supply.getDate())) {
+                    movementByDay.put(supply.getDate(), movementByDay.get(supply.getDate()) + supply.getQuantity());
+                }
+            }
+
+            List<Usage> usages = usageDAO.getAllUsage();
+            for (Usage usage : usages) {
+                if (usage.getDate() != null && movementByDay.containsKey(usage.getDate())) {
+                    movementByDay.put(usage.getDate(), movementByDay.get(usage.getDate()) - usage.getQuantity());
+                }
+            }
+
+            List<Damage> trendDamages = damageDAO.getAllDamage();
+            for (Damage damage : trendDamages) {
+                LocalDate damageDate = parseDateString(damage.getDateString());
+                if (damageDate == null) {
+                    damageDate = parseDateString(damage.getReportDate());
+                }
+                if (damageDate != null && movementByDay.containsKey(damageDate)) {
+                    movementByDay.put(damageDate, movementByDay.get(damageDate) - damage.getQuantity());
+                }
+            }
+
+            JsonArray trendValues = new JsonArray();
+            JsonArray trendLabels = new JsonArray();
+            for (Map.Entry<LocalDate, Double> entry : movementByDay.entrySet()) {
+                trendLabels.add(entry.getKey().getMonthValue() + "/" + entry.getKey().getDayOfMonth());
+                trendValues.add(Math.round(entry.getValue() * 100.0) / 100.0);
+            }
+            chartData.add("stockTrend", trendValues);
+            chartData.add("trendLabels", trendLabels);
+            chartData.addProperty("trendSeriesLabel", "Net Inventory Movements");
+            chartData.addProperty("chartRangeDays", safeRangeDays);
             
             // Category distribution
             JsonObject categoryDist = new JsonObject();
@@ -352,14 +398,19 @@ public class DashboardAPI extends HttpServlet {
         return chartData;
     }
 
-    private JsonObject getAdminChartData() {
+    private JsonObject getAdminChartData(int rangeDays) {
         JsonObject chartData = new JsonObject();
 
         try {
-            List<SystemLog> logs = systemDAO.getRecentLogs();
+            int safeRangeDays = clampRangeDays(rangeDays);
+            if (safeRangeDays <= 0) {
+                safeRangeDays = 30;
+            }
+            LocalDateTime rangeStart = resolveRangeStart(safeRangeDays);
+            List<SystemLog> logs = systemDAO.getLogs(rangeStart, null, null, 10000, 0, true);
 
             Map<LocalDate, Integer> activityByDay = new LinkedHashMap<>();
-            for (int i = 6; i >= 0; i--) {
+            for (int i = safeRangeDays - 1; i >= 0; i--) {
                 LocalDate day = LocalDate.now().minusDays(i);
                 activityByDay.put(day, 0);
             }
@@ -390,6 +441,8 @@ public class DashboardAPI extends HttpServlet {
             }
             chartData.add("systemActivityTrend", trendValues);
             chartData.add("systemActivityLabels", trendLabels);
+            chartData.addProperty("chartRangeDays", safeRangeDays);
+            chartData.addProperty("trendSeriesLabel", "System Events");
 
             List<User> users = userDAO.getAllUsers();
             Map<String, Integer> roleDistribution = new LinkedHashMap<>();
@@ -423,7 +476,7 @@ public class DashboardAPI extends HttpServlet {
         return chartData;
     }
 
-    private JsonObject getAdminSystemAlerts(User user) {
+    private JsonObject getAdminSystemAlerts(User user, int rangeDays) {
         JsonObject alerts = new JsonObject();
         JsonArray items = new JsonArray();
 
@@ -433,12 +486,9 @@ public class DashboardAPI extends HttpServlet {
             return alerts;
         }
 
-        List<SystemLog> logs = systemDAO.getRecentLogs();
-        int count = 0;
+        LocalDateTime rangeStart = resolveRangeStart(clampRangeDays(rangeDays));
+        List<SystemLog> logs = systemDAO.getLogs(rangeStart, null, null, 8, 0, false);
         for (SystemLog log : logs) {
-            if (count >= 8) {
-                break;
-            }
             JsonObject alert = new JsonObject();
             String message = safe(log.getAction());
             alert.addProperty("severity", classifyAlertSeverity(message));
@@ -448,12 +498,198 @@ public class DashboardAPI extends HttpServlet {
                     log.getTimestamp() == null ? nowIso() : log.getTimestamp().format(DATE_FORMATTER)
             );
             items.add(alert);
-            count++;
         }
 
         alerts.add("items", items);
         alerts.addProperty("count", items.size());
         return alerts;
+    }
+
+    private JsonObject getSystemLogs(HttpServletRequest request) {
+        JsonObject payload = new JsonObject();
+        JsonArray items = new JsonArray();
+
+        int page = parsePositiveInt(request.getParameter("page"), 1);
+        int pageSize = Math.min(200, parsePositiveInt(request.getParameter("pageSize"), 50));
+        String search = request.getParameter("search");
+        boolean includeArchived = Boolean.parseBoolean(request.getParameter("includeArchived"));
+
+        int rangeDays = resolveRangeDays(request.getParameter("range"), 30);
+        LocalDateTime from = parseStartDateTime(request.getParameter("from"));
+        LocalDateTime to = parseEndDateTime(request.getParameter("to"));
+        if (from == null && to == null) {
+            from = resolveRangeStart(rangeDays);
+        }
+
+        int offset = (page - 1) * pageSize;
+        List<SystemLog> logs = systemDAO.getLogs(from, to, search, pageSize, offset, includeArchived);
+        int total = systemDAO.countLogs(from, to, search, includeArchived);
+
+        for (SystemLog log : logs) {
+            JsonObject entry = new JsonObject();
+            String actor = safe(log.getUserName());
+            String timestamp = log.getTimestamp() == null ? nowIso() : log.getTimestamp().format(DATE_FORMATTER);
+            entry.addProperty("logId", log.getLogId());
+            entry.addProperty("description", safe(log.getAction()));
+            entry.addProperty("actor", actor);
+            entry.addProperty("date", timestamp);
+            entry.addProperty("action", safe(log.getAction()));
+            entry.addProperty("userName", actor);
+            entry.addProperty("timestamp", timestamp);
+            entry.addProperty("archived", log.getArchivedAt() != null);
+            items.add(entry);
+        }
+
+        payload.add("items", items);
+        payload.addProperty("total", total);
+        payload.addProperty("page", page);
+        payload.addProperty("pageSize", pageSize);
+        payload.addProperty("hasMore", offset + items.size() < total);
+        payload.addProperty("includeArchived", includeArchived);
+        return payload;
+    }
+
+    private int resolveRangeDays(String rawRange, int defaultDays) {
+        if (rawRange == null || rawRange.isBlank()) {
+            return defaultDays;
+        }
+
+        String normalized = rawRange.trim().toLowerCase();
+        if ("week".equals(normalized) || "7d".equals(normalized)) {
+            return 7;
+        }
+        if ("month".equals(normalized) || "30d".equals(normalized)) {
+            return 30;
+        }
+        if ("year".equals(normalized) || "365d".equals(normalized)) {
+            return 365;
+        }
+        if ("all".equals(normalized)) {
+            return -1;
+        }
+        if (normalized.endsWith("d")) {
+            try {
+                return Integer.parseInt(normalized.substring(0, normalized.length() - 1));
+            } catch (NumberFormatException ignored) {
+                return defaultDays;
+            }
+        }
+        try {
+            return Integer.parseInt(normalized);
+        } catch (NumberFormatException ignored) {
+            return defaultDays;
+        }
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        User currentUser = requireAuthenticatedUser(request, response);
+        if (currentUser == null) {
+            return;
+        }
+
+        if (!SecurityConfig.isAdmin(currentUser)) {
+            sendError(response, "Access denied: admin only action", 403);
+            return;
+        }
+
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+
+        String action = request.getParameter("action");
+        if (!"archiveLogs".equals(action)) {
+            sendError(response, "Unsupported dashboard action", 400);
+            return;
+        }
+
+        JsonObject payload = new JsonObject();
+        try {
+            LocalDateTime from = parseStartDateTime(request.getParameter("from"));
+            LocalDateTime to = parseEndDateTime(request.getParameter("to"));
+            if ((from == null) != (to == null)) {
+                sendError(response, "Provide both archive from/to dates", 400);
+                return;
+            }
+            if (from == null && to == null) {
+                int rangeDays = resolveRangeDays(request.getParameter("range"), 30);
+                if (rangeDays <= 0) {
+                    sendError(response, "Provide a bounded range or explicit from/to dates", 400);
+                    return;
+                }
+                from = resolveRangeStart(rangeDays);
+                to = LocalDate.now().plusDays(1).atStartOfDay();
+            }
+
+            int archivedCount = systemDAO.archiveLogs(from, to);
+            payload.addProperty("success", true);
+            payload.addProperty("archivedCount", archivedCount);
+            payload.addProperty("message", archivedCount > 0
+                    ? ("Archived " + archivedCount + " logs")
+                    : "No logs matched the selected archive window");
+            response.getWriter().write(gson.toJson(payload));
+        } catch (Exception e) {
+            sendError(response, "Failed to archive logs: " + e.getMessage(), 500);
+        }
+    }
+
+    private int clampRangeDays(int rangeDays) {
+        if (rangeDays <= 0) {
+            return -1;
+        }
+        return Math.max(1, Math.min(rangeDays, 365));
+    }
+
+    private LocalDateTime resolveRangeStart(int rangeDays) {
+        if (rangeDays <= 0) {
+            return null;
+        }
+        return LocalDate.now().minusDays(rangeDays - 1L).atStartOfDay();
+    }
+
+    private LocalDateTime parseStartDateTime(String dateValue) {
+        if (dateValue == null || dateValue.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(dateValue.trim()).atStartOfDay();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private LocalDateTime parseEndDateTime(String dateValue) {
+        if (dateValue == null || dateValue.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(dateValue.trim()).plusDays(1).atStartOfDay();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private int parsePositiveInt(String value, int fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        try {
+            int parsed = Integer.parseInt(value.trim());
+            return parsed > 0 ? parsed : fallback;
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
+    }
+
+    private LocalDate parseDateString(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(value.trim());
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private void sendError(HttpServletResponse response, String message, int statusCode) throws IOException {

@@ -131,7 +131,7 @@ LEFT JOIN (
 ORDER BY total_actions DESC, u.name ASC;
 
 SELECT sl.log_id, COALESCE(u.name, 'N/A') AS user_name, COALESCE(u.role, 'N/A') AS role,
-       sl.action_performed, sl.timestamp
+       sl.action_performed, sl.timestamp, sl.archived_at
 FROM system_logs sl
 LEFT JOIN users u ON sl.user_id = u.user_id
 WHERE sl.timestamp BETWEEN ? AND ?

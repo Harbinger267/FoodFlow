@@ -8,8 +8,9 @@ public class Damage {
     private String description;
     private String reportedBy;
     private Integer reportedByUserId;
+    private String recordedByName;
     private String damageType;
-    private String status = "PENDING";
+    private String disposition = "DISPOSED";
     private String dateString;   // replaces LocalDate - avoids Gson serialization issues
     private String reportDate;   // replaces LocalDate reportDate
 
@@ -40,9 +41,15 @@ public class Damage {
     public Integer getReportedByUserId() { return reportedByUserId; }
     public void setReportedByUserId(Integer reportedByUserId) { this.reportedByUserId = reportedByUserId; }
 
+    public String getRecordedByName() { return recordedByName; }
+    public void setRecordedByName(String recordedByName) { this.recordedByName = recordedByName; }
+
     public String getDamageType() { return damageType; }
     public void setDamageType(String damageType) { this.damageType = damageType; }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public String getDisposition() { return disposition; }
+    public void setDisposition(String disposition) { this.disposition = disposition; }
+
+    public String getStatus() { return disposition; }
+    public void setStatus(String status) { this.disposition = status; }
 }

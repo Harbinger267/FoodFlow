@@ -157,6 +157,10 @@ const DamageAPI = {
         return fetchAPI(`${ENDPOINTS.DAMAGE}?action=getTypes`);
     },
 
+    getDispositions() {
+        return fetchAPI(`${ENDPOINTS.DAMAGE}?action=getDispositions`);
+    },
+
     async add(damageData) {
         const params = new URLSearchParams();
         params.append('action', 'add');
@@ -164,6 +168,7 @@ const DamageAPI = {
         params.append('quantity', damageData.quantity);
         params.append('damageType', damageData.damageType || 'Other');
         params.append('reportedBy', damageData.reportedBy || '');
+        params.append('disposition', damageData.disposition || 'DISPOSED');
 
         try {
             const response = await fetch(ENDPOINTS.DAMAGE, {
@@ -252,6 +257,25 @@ const UsageAPI = {
             console.error('Error updating usage status:', error);
             throw error;
         }
+    },
+
+    async recordReturn(usageId, quantity) {
+        const params = new URLSearchParams();
+        params.append('action', 'recordReturn');
+        params.append('usageId', usageId);
+        params.append('quantity', quantity);
+
+        try {
+            const response = await fetch(ENDPOINTS.USAGE, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: params
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error recording return:', error);
+            throw error;
+        }
     }
 };
 
@@ -259,24 +283,64 @@ const UsageAPI = {
  * Dashboard API
  */
 const DashboardAPI = {
-    getStats() {
-        return fetchAPI(`${ENDPOINTS.DASHBOARD}?action=stats`);
+    getStats(range = '30d') {
+        return fetchAPI(`${ENDPOINTS.DASHBOARD}?action=stats&range=${encodeURIComponent(range)}`);
     },
 
     getLowStock() {
         return fetchAPI(`${ENDPOINTS.DASHBOARD}?action=lowStock`);
     },
 
-    getSystemAlerts() {
-        return fetchAPI(`${ENDPOINTS.DASHBOARD}?action=systemAlerts`);
+    getSystemAlerts(range = '30d') {
+        return fetchAPI(`${ENDPOINTS.DASHBOARD}?action=systemAlerts&range=${encodeURIComponent(range)}`);
     },
 
-    getRecentActivity() {
-        return fetchAPI(`${ENDPOINTS.DASHBOARD}?action=recentActivity`);
+    getRecentActivity(range = '30d') {
+        return fetchAPI(`${ENDPOINTS.DASHBOARD}?action=recentActivity&range=${encodeURIComponent(range)}`);
     },
 
-    getChartData() {
-        return fetchAPI(`${ENDPOINTS.DASHBOARD}?action=charts`);
+    getChartData(range = '30d') {
+        return fetchAPI(`${ENDPOINTS.DASHBOARD}?action=charts&range=${encodeURIComponent(range)}`);
+    },
+
+    getSystemLogs(filters = {}) {
+        const params = new URLSearchParams();
+        params.append('action', 'systemLogs');
+        params.append('range', filters.range || '30d');
+        params.append('page', filters.page || 1);
+        params.append('pageSize', filters.pageSize || 50);
+        params.append('includeArchived', filters.includeArchived ? 'true' : 'false');
+        if (filters.search) {
+            params.append('search', filters.search);
+        }
+        if (filters.from) {
+            params.append('from', filters.from);
+        }
+        if (filters.to) {
+            params.append('to', filters.to);
+        }
+        return fetchAPI(`${ENDPOINTS.DASHBOARD}?${params.toString()}`);
+    },
+
+    archiveLogs(filters = {}) {
+        const params = new URLSearchParams();
+        params.append('action', 'archiveLogs');
+        params.append('range', filters.range || '30d');
+        if (filters.from) {
+            params.append('from', filters.from);
+        }
+        if (filters.to) {
+            params.append('to', filters.to);
+        }
+
+        return fetchAPI(ENDPOINTS.DASHBOARD, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: params
+        });
     },
 
     getAll() {

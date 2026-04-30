@@ -85,6 +85,167 @@ public class UsageDAO {
         return false;
     }
 
+    public boolean recordReturn(int borrowId, double quantityToReturn) {
+        if (borrowId <= 0 || quantityToReturn <= 0) {
+            return false;
+        }
+
+        String selectSql = "SELECT item_id, quantity_borrowed, quantity_returned, status " +
+                "FROM borrow_transactions WHERE borrow_id = ? FOR UPDATE";
+        String updateBorrowSql = "UPDATE borrow_transactions " +
+                "SET quantity_returned = ?, status = ?, " +
+                "return_date = CASE WHEN ? = 'RETURNED' THEN CURRENT_TIMESTAMP ELSE return_date END " +
+                "WHERE borrow_id = ?";
+        String updateStockSql = "UPDATE items SET stock = stock + ?, " +
+                "status = CASE WHEN stock + ? <= 0 THEN 'OUT_OF_STOCK' ELSE 'AVAILABLE' END " +
+                "WHERE item_id = ?";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement selectStmt = conn.prepareStatement(selectSql);
+             PreparedStatement updateBorrowStmt = conn.prepareStatement(updateBorrowSql);
+             PreparedStatement updateStockStmt = conn.prepareStatement(updateStockSql)) {
+            conn.setAutoCommit(false);
+
+            selectStmt.setInt(1, borrowId);
+            try (ResultSet rs = selectStmt.executeQuery()) {
+                if (!rs.next()) {
+                    conn.rollback();
+                    return false;
+                }
+
+                int itemId = rs.getInt("item_id");
+                double borrowedQty = rs.getDouble("quantity_borrowed");
+                double returnedQty = rs.getDouble("quantity_returned");
+                String currentStatus = rs.getString("status");
+                if ("LOST".equalsIgnoreCase(currentStatus) || "RETURNED".equalsIgnoreCase(currentStatus)) {
+                    conn.rollback();
+                    return false;
+                }
+
+                double outstanding = Math.max(0, borrowedQty - returnedQty);
+                if (quantityToReturn > outstanding) {
+                    conn.rollback();
+                    return false;
+                }
+
+                double newReturnedQty = returnedQty + quantityToReturn;
+                String nextStatus = newReturnedQty >= borrowedQty ? "RETURNED" : "PARTIALLY_RETURNED";
+
+                updateBorrowStmt.setDouble(1, newReturnedQty);
+                updateBorrowStmt.setString(2, nextStatus);
+                updateBorrowStmt.setString(3, nextStatus);
+                updateBorrowStmt.setInt(4, borrowId);
+                if (updateBorrowStmt.executeUpdate() == 0) {
+                    conn.rollback();
+                    return false;
+                }
+
+                updateStockStmt.setDouble(1, quantityToReturn);
+                updateStockStmt.setDouble(2, quantityToReturn);
+                updateStockStmt.setInt(3, itemId);
+                if (updateStockStmt.executeUpdate() == 0) {
+                    conn.rollback();
+                    return false;
+                }
+            }
+
+            conn.commit();
+            return true;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean completeReturn(int borrowId) {
+        if (borrowId <= 0) {
+            return false;
+        }
+
+        String sql = "SELECT quantity_borrowed, quantity_returned, status FROM borrow_transactions WHERE borrow_id = ?";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, borrowId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (!rs.next()) {
+                    return false;
+                }
+
+                String status = rs.getString("status");
+                if ("RETURNED".equalsIgnoreCase(status)) {
+                    return true;
+                }
+                if ("LOST".equalsIgnoreCase(status)) {
+                    return false;
+                }
+
+                double borrowed = rs.getDouble("quantity_borrowed");
+                double returned = rs.getDouble("quantity_returned");
+                double outstanding = Math.max(0, borrowed - returned);
+                if (outstanding <= 0) {
+                    return true;
+                }
+                return recordReturn(borrowId, outstanding);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean markBorrowAsLost(int borrowId) {
+        if (borrowId <= 0) {
+            return false;
+        }
+
+        String selectSql = "SELECT quantity_borrowed, quantity_returned, status FROM borrow_transactions WHERE borrow_id = ? FOR UPDATE";
+        String updateSql = "UPDATE borrow_transactions SET status = 'LOST', return_date = CURRENT_TIMESTAMP WHERE borrow_id = ?";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement selectStmt = conn.prepareStatement(selectSql);
+             PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+            conn.setAutoCommit(false);
+
+            selectStmt.setInt(1, borrowId);
+            try (ResultSet rs = selectStmt.executeQuery()) {
+                if (!rs.next()) {
+                    conn.rollback();
+                    return false;
+                }
+
+                String status = rs.getString("status");
+                if ("LOST".equalsIgnoreCase(status)) {
+                    conn.rollback();
+                    return true;
+                }
+                if ("RETURNED".equalsIgnoreCase(status)) {
+                    conn.rollback();
+                    return false;
+                }
+
+                double borrowed = rs.getDouble("quantity_borrowed");
+                double returned = rs.getDouble("quantity_returned");
+                if ((borrowed - returned) <= 0) {
+                    conn.rollback();
+                    return false;
+                }
+            }
+
+            updateStmt.setInt(1, borrowId);
+            boolean updated = updateStmt.executeUpdate() > 0;
+            if (!updated) {
+                conn.rollback();
+                return false;
+            }
+
+            conn.commit();
+            return true;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     public List<Usage> getAllUsage() {
         String sql = "SELECT t.usage_id, t.item_id, t.item_name, t.quantity, t.quantity_returned, t.usage_date, t.status, t.recorded_by, t.recorded_by_name, t.recipient_name " +
                 "FROM (" +
@@ -123,7 +284,7 @@ public class UsageDAO {
         usage.setQuantityReturned(rs.getDouble("quantity_returned"));
         int recordedBy = rs.getInt("recorded_by");
         usage.setRecordedBy(rs.wasNull() ? null : recordedBy);
-        usage.setItemUserName(rs.getString("recorded_by_name"));
+        usage.setRecordedByName(rs.getString("recorded_by_name"));
         usage.setIssuedTo(rs.getString("recipient_name"));
         Timestamp timestamp = rs.getTimestamp("usage_date");
         if (timestamp != null) {

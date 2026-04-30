@@ -8,6 +8,7 @@ public class SystemLog {
     private String userName;
     private String action;
     private LocalDateTime timestamp;
+    private LocalDateTime archivedAt;
 
     public int getLogId() { return logId; }
     public void setLogId(int logId) { this.logId = logId; }
@@ -23,4 +24,7 @@ public class SystemLog {
 
     public LocalDateTime getTimestamp() { return timestamp; }
     public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
+
+    public LocalDateTime getArchivedAt() { return archivedAt; }
+    public void setArchivedAt(LocalDateTime archivedAt) { this.archivedAt = archivedAt; }
 }

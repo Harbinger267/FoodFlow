@@ -57,6 +57,13 @@ public class DamageAPI extends HttpServlet {
                 types.add("Water Damaged");
                 types.add("Other");
                 response.getWriter().write(gson.toJson(types));
+            } else if ("getDispositions".equals(action)) {
+                JsonArray dispositions = new JsonArray();
+                dispositions.add("DISPOSED");
+                dispositions.add("REPLACED");
+                dispositions.add("UNDER_REPAIR");
+                dispositions.add("REPAIRED");
+                response.getWriter().write(gson.toJson(dispositions));
             } else {
                 List<Damage> damages = damageDAO.getAllDamage();
                 response.getWriter().write(gson.toJson(damages));
@@ -90,6 +97,8 @@ public class DamageAPI extends HttpServlet {
                 int itemId = Integer.parseInt(request.getParameter("itemId"));
                 int quantity = Integer.parseInt(request.getParameter("quantity"));
                 String damageType = request.getParameter("damageType");
+                String reportedByName = request.getParameter("reportedBy");
+                String disposition = request.getParameter("disposition");
                 
                 Item item = itemDAO.getItemById(itemId);
                 if (item == null) {
@@ -98,7 +107,10 @@ public class DamageAPI extends HttpServlet {
                 }
                 
                 boolean success = damageDAO.recordDamage(itemId, quantity, 
-                    damageType != null ? damageType : "Other", currentUser.getUserId());
+                    damageType != null ? damageType : "Other",
+                    currentUser.getUserId(),
+                    reportedByName,
+                    disposition);
                 
                 JsonObject jsonResponse = new JsonObject();
                 jsonResponse.addProperty("success", success);
@@ -107,9 +119,14 @@ public class DamageAPI extends HttpServlet {
                 response.getWriter().write(gson.toJson(jsonResponse));
                 
             } else if ("updateStatus".equals(action)) {
+                int damageId = Integer.parseInt(request.getParameter("damageId"));
+                String disposition = request.getParameter("status");
+                boolean success = damageDAO.updateDisposition(damageId, disposition);
                 JsonObject jsonResponse = new JsonObject();
-                jsonResponse.addProperty("success", true);
-                jsonResponse.addProperty("message", "Status update not yet implemented");
+                jsonResponse.addProperty("success", success);
+                jsonResponse.addProperty("message", success
+                        ? "Disposition updated"
+                        : "Failed to update disposition");
                 response.getWriter().write(gson.toJson(jsonResponse));
             }
             

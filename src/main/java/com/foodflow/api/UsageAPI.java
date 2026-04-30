@@ -86,6 +86,7 @@ public class UsageAPI extends HttpServlet {
             if ("add".equals(action)) {
                 int itemId = Integer.parseInt(request.getParameter("itemId"));
                 int quantity = Integer.parseInt(request.getParameter("quantity"));
+                String staffName = request.getParameter("staffName");
                 String department = request.getParameter("department");
                 
                 Item item = itemDAO.getItemById(itemId);
@@ -99,8 +100,13 @@ public class UsageAPI extends HttpServlet {
                     return;
                 }
                 
-                boolean success = usageService.recordUsage(itemId, quantity, currentUser.getUserId(), 
-                    department != null ? department : "Internal Department");
+                boolean success = usageService.recordUsage(
+                        itemId,
+                        quantity,
+                        currentUser.getUserId(),
+                        staffName,
+                        department != null ? department : "Internal Department"
+                );
                 
                 JsonObject jsonResponse = new JsonObject();
                 jsonResponse.addProperty("success", success);
@@ -108,10 +114,44 @@ public class UsageAPI extends HttpServlet {
                     "Usage recorded successfully" : "Failed to record usage");
                 response.getWriter().write(gson.toJson(jsonResponse));
                 
-            } else if ("updateStatus".equals(action)) {
+            } else if ("recordReturn".equals(action)) {
+                int usageId = Integer.parseInt(request.getParameter("usageId"));
+                double quantity = Double.parseDouble(request.getParameter("quantity"));
+
+                boolean success = usageDAO.recordReturn(usageId, quantity);
                 JsonObject jsonResponse = new JsonObject();
-                jsonResponse.addProperty("success", true);
-                jsonResponse.addProperty("message", "Status update not yet implemented");
+                jsonResponse.addProperty("success", success);
+                jsonResponse.addProperty("message", success
+                        ? "Return recorded successfully"
+                        : "Failed to record return (check outstanding quantity)");
+                response.getWriter().write(gson.toJson(jsonResponse));
+
+            } else if ("updateStatus".equals(action)) {
+                int usageId = Integer.parseInt(request.getParameter("usageId"));
+                String status = request.getParameter("status");
+                String normalized = status == null ? "" : status.trim().toUpperCase();
+
+                boolean success;
+                String message;
+                if ("LOST".equals(normalized)) {
+                    success = usageDAO.markBorrowAsLost(usageId);
+                    message = success ? "Borrow record marked as lost" : "Unable to mark record as lost";
+                } else if ("RETURNED".equals(normalized)) {
+                    String quantityParam = request.getParameter("quantity");
+                    if (quantityParam != null && !quantityParam.isBlank()) {
+                        success = usageDAO.recordReturn(usageId, Double.parseDouble(quantityParam));
+                    } else {
+                        success = usageDAO.completeReturn(usageId);
+                    }
+                    message = success ? "Return recorded successfully" : "Unable to complete return";
+                } else {
+                    success = false;
+                    message = "Unsupported status update";
+                }
+
+                JsonObject jsonResponse = new JsonObject();
+                jsonResponse.addProperty("success", success);
+                jsonResponse.addProperty("message", message);
                 response.getWriter().write(gson.toJson(jsonResponse));
             }
             
